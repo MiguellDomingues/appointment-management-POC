@@ -2,7 +2,15 @@ import moment from "moment";
 import { momentLocalizer } from "react-big-calendar";
 import {useState, useMemo, useEffect } from 'react'
 
-import { createCloseIntervals , createBreakIntervals } from './intervals.js'
+import { workdays, breaks, shifts, getShiftById,getBreakById } from "./assets/data"
+
+import { 
+    getTimeSlotStep,
+    getMinMaxWorkingPlanTimes_obj_test,
+    createCloseIntervals_obj_test,
+    initObjects,
+    createCalendarEvents_test,
+ } from './intervals.js'
 
 import Week from "react-big-calendar/lib/Week";
 import PropTypes from "prop-types";
@@ -54,34 +62,36 @@ function useAvailability(dataArr = []){
 
     ////////////////////////states
     const [locationId, setLocationId] = useState(null)
-    const [workingPlan, setWorkingPlan] = useState([...defaultWorkingPlan])
+    const [workingPlan, setWorkingPlan] = useState([...workdays])
     const [serviceDurations, setServiceDurations] = useState([])
-    const [breaks, setWorkingBreaks] = useState([])
+    //const [breaks, setWorkingBreaks] = useState([])
 
-    console.log("dataArr: ", dataArr)
-    console.log("workingPlan ", workingPlan)
-    console.log("serviceDurations ", serviceDurations)
-    console.log("breaks ", breaks)
+   // console.log("dataArr: ", dataArr)
+   // console.log("workingPlan ", workingPlan)
+   // console.log("serviceDurations ", serviceDurations)
+   // console.log("breaks ", breaks)
 
-    ////////////////////////calendar apperence data///////////////
-    const {closeIntervals, startMin, endMax, timeStep} =  useMemo( ()=>createCloseIntervals(workingPlan), [workingPlan])
-    const breakIntervals =  useMemo( ()=>createBreakIntervals(breaks), [breaks])
+    const workingPlanObjects = useMemo( ()=>initObjects(workingPlan), [workingPlan])
+
+    const {startMin, endMax} = useMemo( ()=>getMinMaxWorkingPlanTimes_obj_test(workingPlanObjects), [workingPlanObjects])
+   
+    const closeIntervals =  useMemo( ()=> createCloseIntervals_obj_test(workingPlanObjects,startMin,endMax), [workingPlanObjects,startMin,endMax])
+
+    const timeStep       = useMemo( ()=>getTimeSlotStep(startMin,endMax), [startMin,endMax])
+
+    const shiftIntervals =  useMemo( ()=>createCalendarEvents_test(workingPlanObjects, "shifts"), [workingPlanObjects])
+
+    const breakIntervals =  useMemo( ()=>createCalendarEvents_test(workingPlanObjects, "breaks"), [workingPlanObjects])
 
     ////////////////////////on load and refetches, retreive the availability props from data///////////////
-    useEffect( () => { 
-        console.log("useavail use effect")
-        const {workingPlan, breaks, serviceDurations,locationId } = getAvailabilityPropsFromData(dataArr);
-        console.log(workingPlan, breaks, serviceDurations,locationId )
-        setLocationId(locationId)
-        setWorkingPlan([...workingPlan]);
-        setWorkingBreaks([...breaks]);
-        setServiceDurations([...serviceDurations]);
-    }, []);
+    useEffect( () => {}, []);
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
   
     const eventPropGetter = (event, start, end, isSelected) => ({ //override some CSS for the event containers
-        className: `RBC_events_override ${event.isBreak ? ` RBC_break_interval_override ` : ` RBC_close_interval_override `}` 
+        className: `RBC_events_override 
+          ${event.type === 'shifts' ? ` RBC_shift_interval_override ` :
+            event.type === 'breaks' ? ` RBC_break_interval_override ` : ` RBC_close_interval_override `}`
     })
 
     const formats = { 
@@ -103,11 +113,11 @@ function useAvailability(dataArr = []){
             toolbar:            false,
             views:              {work_week: MyWorkWeek},
             eventPropGetter:    eventPropGetter,
-            backgroundEvents:   breakIntervals,
-            //timeslots:1,
+            backgroundEvents:   breakIntervals.concat(shiftIntervals),//allIntervals,//breakIntervals,
+            timeslots:1, //this makes the calendar take up a ton of space
             //style={}
-            onSelectEvent:      (event) => console.log("clicked event "),
-            onSelectSlot:       ()=>console.log("clicked Slot")   
+            onSelectEvent:      (event) => console.log("clicked event. employees: ", event.employees, event.isBreak, event),
+            onSelectSlot:       (event)=>console.log("clicked Slot", event)   
         },
         
         workingPlanListProps: {
@@ -153,7 +163,6 @@ const workWeekRange = (date, options) =>([
     new Date("2023", 10, 26, 0, 0 , 0, 0),
 ])
 
-
   //override default work week so it shows all 7 days of the week monday->sunday
   class MyWorkWeek extends React.Component {
     render() {
@@ -162,7 +171,6 @@ const workWeekRange = (date, options) =>([
       return <TimeGrid {...props} range={range} eventOffset={15} />;
     }
   }
-  
   
   MyWorkWeek.propTypes = {
     date: PropTypes.instanceOf(Date).isRequired

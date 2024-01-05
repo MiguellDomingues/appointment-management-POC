@@ -44,3 +44,8 @@
 .RBC_break_interval_override{
   background-color: red !important;
 }
+
+.RBC_shift_interval_override{
+  background-color: rgb(0, 255, 128) !important;
+}
+
