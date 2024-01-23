@@ -2,14 +2,15 @@ import moment from "moment";
 import { momentLocalizer } from "react-big-calendar";
 import {useState, useMemo, useEffect } from 'react'
 
-import { workdays, breaks, shifts, getShiftById,getBreakById } from "./assets/data"
+import { workdays, breaks, shifts, getShiftById,getBreakById,getEmployeeById  } from "./assets/data"
 
 import { 
     getTimeSlotStep,
-    getMinMaxWorkingPlanTimes_obj_test,
-    createCloseIntervals_obj_test,
+    getMinMaxWorkingPlanTimes,
+    createCloseIntervals,
     initObjects,
-    createCalendarEvents_test,
+    createAvailabilityCalendarEvents,
+    createScedualeCalendarEvents
  } from './intervals.js'
 
 import Week from "react-big-calendar/lib/Week";
@@ -20,6 +21,7 @@ import TimeGrid from "react-big-calendar/lib/TimeGrid";
 moment.locale("en-CA");
 const localizer = momentLocalizer(moment);
 
+/*
 const defaultWorkingPlan = [
     {
         day: "Monday",
@@ -56,15 +58,20 @@ const defaultWorkingPlan = [
         start: "",
         end:   ""
     },
-]
+]*/
   
-function useAvailability(dataArr = []){
+function useAvailability(dataArr = [], checkBox){
 
     ////////////////////////states
     const [locationId, setLocationId] = useState(null)
     const [workingPlan, setWorkingPlan] = useState([...workdays])
     const [serviceDurations, setServiceDurations] = useState([])
     //const [breaks, setWorkingBreaks] = useState([])
+
+    const [selectedEvent, setSelectedEvent] = useState(null)
+
+   // console.log("///selected event hook: ", selectedEvent)
+    
 
    // console.log("dataArr: ", dataArr)
    // console.log("workingPlan ", workingPlan)
@@ -73,33 +80,85 @@ function useAvailability(dataArr = []){
 
     const workingPlanObjects = useMemo( ()=>initObjects(workingPlan), [workingPlan])
 
-    const {startMin, endMax} = useMemo( ()=>getMinMaxWorkingPlanTimes_obj_test(workingPlanObjects), [workingPlanObjects])
+    const minMaxInterval = useMemo( ()=>getMinMaxWorkingPlanTimes(workingPlanObjects), [workingPlanObjects])
+
+   // console.log("minMaxInterval: ", minMaxInterval )
    
-    const closeIntervals =  useMemo( ()=> createCloseIntervals_obj_test(workingPlanObjects,startMin,endMax), [workingPlanObjects,startMin,endMax])
+    //const closeIntervals =  useMemo( ()=> createCloseIntervals(workingPlanObjects,startMin,endMax), [workingPlanObjects,startMin,endMax])
 
-    const timeStep       = useMemo( ()=>getTimeSlotStep(startMin,endMax), [startMin,endMax])
+    const closeIntervals =  useMemo( ()=> createCloseIntervals(workingPlanObjects,minMaxInterval), [workingPlanObjects,minMaxInterval])
+    //console.log("closeIntervals: ", closeIntervals )
+    const timeStep       = useMemo( ()=>getTimeSlotStep(minMaxInterval), [minMaxInterval])
 
-    const shiftIntervals =  useMemo( ()=>createCalendarEvents_test(workingPlanObjects, "shifts"), [workingPlanObjects])
+    const shiftIntervals =  useMemo( ()=>createAvailabilityCalendarEvents(workingPlanObjects, "shifts"), [workingPlanObjects])
 
-    const breakIntervals =  useMemo( ()=>createCalendarEvents_test(workingPlanObjects, "breaks"), [workingPlanObjects])
+    const breakIntervals =  useMemo( ()=>createAvailabilityCalendarEvents(workingPlanObjects, "breaks"), [workingPlanObjects])
+
+    const scedualeIntervals =  useMemo( ()=>createScedualeCalendarEvents(workingPlanObjects), [workingPlanObjects])
 
     ////////////////////////on load and refetches, retreive the availability props from data///////////////
     useEffect( () => {}, []);
 
+    
     ///////////////////////////////////////////////////////////////////////////////////////////////////////
   
-    const eventPropGetter = (event, start, end, isSelected) => ({ //override some CSS for the event containers
+    //this fires for every event on each click
+    const eventPropGetter = (event, start, end, isSelected) => {
+
+        //console.log("**********eventPropGetter event", event)
+
+        return { //override some CSS for the event containers
+            className: `RBC_events_override 
+              ${event.type === 'shifts' ? ` RBC_shift_interval_override ` :
+                event.type === 'breaks' ? ` RBC_break_interval_override ` : ` RBC_close_interval_override `}
+                ${(event.type && selectedEvent && event.key === selectedEvent.key) && ` RBC_selected_interval_override`}`
+        }
+
+    }/*({ //override some CSS for the event containers
         className: `RBC_events_override 
           ${event.type === 'shifts' ? ` RBC_shift_interval_override ` :
             event.type === 'breaks' ? ` RBC_break_interval_override ` : ` RBC_close_interval_override `}`
-    })
+    })*/
 
     const formats = { 
         eventTimeRangeFormat: (event, culture, localizer) => "",                        //removes the start/end time strings from each event
         dayFormat: (date, culture, localizer) =>localizer.format(date, 'ddd', culture), //change the day columns to only display the day of the week
     }
 
+
+
+    const onSelectEvent = (event) => {
+
+        //when a break/shift event is clicked, copy its props and store the weekdays it appears
+        if(event.type){
+
+            setSelectedEvent({
+                ...event,
+                week_days:  breakIntervals.concat(shiftIntervals)
+                                .filter(e=>e.key === event.key)
+                                    .map(e=>e.start.toString().split(" ")[0])
+            })
+        }
+
+    }//console.log("clicked event. employees: ", event.employees, event.isBreak, event)
+
+    const startMin = minMaxInterval.startTimeToHMObject()//Interval.totalMinutesToHoursMinutesObject(minMaxInterval.start)
+    const endMax = minMaxInterval.endTimeToHMObject()//Interval.totalMinutesToHoursMinutesObject(minMaxInterval.end)
+
+    //console.log("timestep: ", timeStep)
+
+    const getEventsByType = (events, event_type) => {
+        return event_type !== "breaks_shifts" ? events.filter(e=>e.type === event_type) : events
+    } 
+
+    //const intervals = breakIntervals.concat(shiftIntervals)
+    
+    /*checkBox === "breaks" ? 
+        breakIntervals : checkBox === "shifts" ? 
+            shiftIntervals : breakIntervals.concat(shiftIntervals)*/
+
     return {
+        selectedEvent: selectedEvent,
         calendarProps: {
             min: new Date("2023", 10, 20, startMin.h, startMin.m, 0, 0),
             max: new Date("2023", 10, 20, endMax.h, endMax.m, 0, 0),
@@ -107,16 +166,16 @@ function useAvailability(dataArr = []){
             formats:            formats,
             localizer:          localizer,
             defaultDate:        new Date("2023", 10, 20, 0, 0, 0, 0),
-            defaultView:        "work_week",
-            events:             closeIntervals,
+            defaultView:        "work_week",//"day",
+            events:             getEventsByType(breakIntervals.concat(shiftIntervals), checkBox),//intervals,
             step:               timeStep,
             toolbar:            false,
-            views:              {work_week: MyWorkWeek},
+            views:              {work_week: MyWorkWeek},//["day", "agenda", "work_week", "month"],////["day", "agenda", "work_week", "month"],//{work_week: MyWorkWeek}, //views={["day", "agenda", "work_week", "month"]}
             eventPropGetter:    eventPropGetter,
-            backgroundEvents:   breakIntervals.concat(shiftIntervals),//allIntervals,//breakIntervals,
+            backgroundEvents:   closeIntervals,//intervals,//scedualeIntervals,//intervals,//breakIntervals.concat(shiftIntervals),//breakIntervals,//shiftIntervals,//
             timeslots:1, //this makes the calendar take up a ton of space
             //style={}
-            onSelectEvent:      (event) => console.log("clicked event. employees: ", event.employees, event.isBreak, event),
+            onSelectEvent:      onSelectEvent,//(event) => console.log("clicked event. employees: ", event.employees, event.isBreak, event),
             onSelectSlot:       (event)=>console.log("clicked Slot", event)   
         },
         
