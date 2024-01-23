@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import _  from 'lodash';
 
-import { WorkDay, IntervalSet } from './classes.js'
+import { WorkDay, IntervalSet, Interval } from './classes.js'
 
 import { getBreakById, getShiftById, getEmployeeById  } from './assets/data.js'
 
@@ -16,6 +16,7 @@ const DOTW = Object.freeze({
     Saturday: 5,
     Sunday: 6
 })
+
 
 /*
 export function isTimeStringValid(timeString){
@@ -32,15 +33,15 @@ export function sortByWeekday(daysOfTheWeek){
 
 //we want to find the time steps (in minutes) betwen each box for a 24 hour work day such that it does not scroll the screen 
 //revisit this function so I can use the entire UI; base it on the container height or something
-export function getTimeSlotStep(startMin, endMax){
+export function getTimeSlotStep(minMaxInterval){
 
     const TIME_SLOT_BOXES = 20 //number of boxes we want on the screen at once to prevent scrolling
     const TIME_SLOT_STEP_CHOICES = [15,30,60] //the minutes for each time slot size
 
-    const HMToMinutes = (time) => (time.h*60)+time.m
+    //const HMToMinutes = (time) => (time.h*60)+time.m
     const f = (minutes, slotSize) => Math.abs( TIME_SLOT_BOXES - (minutes/slotSize) )
 
-    const timeDiff = HMToMinutes(endMax) - HMToMinutes(startMin)
+    const timeDiff = minMaxInterval.end - minMaxInterval.start
 
     let min = Number.MAX_SAFE_INTEGER, step = null
 
@@ -55,64 +56,7 @@ export function getTimeSlotStep(startMin, endMax){
     return step;
 }
 
-const totalMinutesToHoursMinutes = totalMins => ({h: Math.floor(totalMins/60) , m: totalMins%60})
-
-export class Interval {
-
-    constructor(start, end){
-  
-      if(_.isString(start))
-        this.start = hourMinutesStringtoTotalMinutes(start);
-      else 
-        this.start = start || 0
-      
-      if(_.isString(end))
-        this.end =   hourMinutesStringtoTotalMinutes(end);
-      else 
-        this.end = end || 0
-
-        if(this.end < 0 || this.start < 0 )
-            throw new Error(`start ${this.start} end ${this.end } must be > 0`)
-        if(this.start > this.end)
-            throw new Error(`start ${this.start} must be < end ${this.end }`)
-        if(this.end > MAX_MINUTES_IN_DAY)
-            throw new Error( `end ${this.end} must be <= ${MAX_MINUTES_IN_DAY}`)
-      
-      //assert.equal(this.end >= 0 && this.start >= 0 , true, `start ${this.start} end ${this.end } must be > 0`)
-     // assert.equal(this.start <= this.end, true, `start ${this.start} must be < end ${this.end }`)
-     // assert.equal(this.end <= MAX_MINUTES_IN_DAY , true, `end ${this.end} must be <= ${MAX_MINUTES_IN_DAY}`)
-    }
-  
-    get duration(){
-      return this.end-this.start;
-    }
-  
-    toObject(){
-      return {start: this.start, end: this.end}
-    }
-  
-    startToHoursMinutesString(){
-      return Interval.totalMinutesToHoursMinutesString(this.start)
-    }
-  
-    endToHoursMinutesString(){
-      return Interval.totalMinutesToHoursMinutesString(this.end)
-    }
-
-    static totalMinutesToHoursMinutesObject(totalMins){
-        return ({h: Math.floor(totalMins/60) , m: totalMins%60})
-      }
-  
-    static totalMinutesToHoursMinutesString(totalMins){
-      return `${new String(Math.floor(totalMins/60)).padStart(2, '0')}:${new String(totalMins%60).padStart(2, '0') }`
-    }
-  
-    toString(){
-      return `start: ${this.startToHoursMinutesString()} end: ${this.endToHoursMinutesString()}`
-    }
-  
-  
-}
+//const totalMinutesToHoursMinutes = totalMins => ({h: Math.floor(totalMins/60) , m: totalMins%60})
 
 export const toIntervals = (time_objs) => time_objs.map(({start, end})=>new Interval(start, end)) 
   
@@ -126,16 +70,392 @@ export function sortIntervals(intervals = []){
             : interval1.end - interval2.end)
 }
 
-/*
-validate and convert a string into total minutes
-input: a string representing a time in 24 hour format: 00:00->23:59 WITH a leading zero on single digits
-*/
-export function hourMinutesStringtoTotalMinutes(timeString){
-    //const regex = new RegExp(`^([0-1]?[0-9]|2[0-3]):([0-5][0-9])(:[0-5][0-9])?$`);
-    //assert.equal(regex.test(timeString), true, ` time string ${timeString} must be 00:00->23:59 format`)
+export function getMinMaxWorkingPlanTimes(openCloseTimes){
 
-return parseInt(timeString.split(":")[0])*60 + parseInt(timeString.split(":")[1])
-} 
+    if(!openCloseTimes.some(wp=>wp.open && wp.close)){ //when working plan does not have at least a single set open/close time
+        return new Interval(0, MAX_MINUTES_IN_DAY)//{ startMin: {h:0, m:0}, endMax: {h:23, m:59} }
+    }
+
+    let minMinutes =   MAX_MINUTES_IN_DAY
+    let maxMinutes =   0
+
+    openCloseTimes.forEach((wp)=>{
+        const {open, close} = wp
+
+        if(open && close){
+            minMinutes = Math.min(open, minMinutes)
+            maxMinutes = Math.max(close, maxMinutes)
+        }
+    })
+
+    return new Interval(minMinutes,maxMinutes)
+}
+
+export function createCloseIntervals(workDayObjects, minMaxInterval){
+  
+    if(workDayObjects.length !== 7){
+      throw new Error("workDayObjects must have exactly 7 objects; 1 for each day of the week")
+    }
+
+    const closeIntervals = []
+
+    const createCloseInterval = (openCloseInterval, weekStart) => {
+
+        const startHM = openCloseInterval.startTimeToHMObject()
+        const endHM = openCloseInterval.endTimeToHMObject()
+      
+      closeIntervals.push({
+        id: closeIntervals.length, 
+        start: new Date("2023", 10, weekStart, startHM.h , startHM.m , 0, 0), 
+        end: new Date("2023", 10, weekStart, endHM.h, endHM.m, 0, 0), 
+      })
+    }
+
+    let weekStart = 20 // set the starting dotw to nov 20 2023; a monday
+
+    workDayObjects.forEach(wdo=>{
+        const {open, close, dotw } = wdo 
+        const weekDay = weekStart + dotw
+
+        if(wdo.isOpen()){ //if the store is open 
+
+            if(open !== minMaxInterval.start){  
+                createCloseInterval(new Interval(minMaxInterval.start, open), weekDay)
+            }
+
+            if(close !== minMaxInterval.end){
+                createCloseInterval(new Interval(close, minMaxInterval.end), weekDay)
+            }
+        }
+        else{ //otherwise mark the entire day as clossed
+            createCloseInterval(new Interval(minMaxInterval.start, minMaxInterval.end), weekDay)
+        }
+    })
+
+    return closeIntervals;
+}
+
+export function fillInEmptyDays(workDayObjects){
+
+    const daysOfTheWeek = new Set(Object.keys(DOTW).map(dotw=>DOTW[dotw]))
+  
+    workDayObjects.forEach(ds=>daysOfTheWeek.delete(ds.dotw))
+
+    daysOfTheWeek.forEach(d=>{
+
+    workDayObjects.push(
+        new WorkDay(d, "", "", [], [])
+        
+    )})
+  
+     return workDayObjects
+ }
+
+export function initObjects(workdays){
+
+    const workDayObjects = []
+
+    workdays.forEach(wd=>{
+        const {dotw, open, close, shifts, breaks} = wd
+
+        const s = shifts.map(getShiftById).map(({start, end, employees})=>new IntervalSet(start,end,employees))
+        const b = breaks.map(getBreakById).map(({start, end, employees})=>new IntervalSet(start,end,employees))
+
+        workDayObjects.push(new WorkDay(dotw,open,close,s,b))
+    })
+
+    return fillInEmptyDays(workDayObjects)
+
+}
+
+export function createAvailabilityCalendarEvents(workDayObjects, setKey){
+
+    const calendarEvents = []
+
+    workDayObjects.forEach(wdo=>{
+
+        const intervalSets = wdo[setKey]
+
+        console.log("workday object: ", wdo)
+
+        const dayOfTheWeek = 20+wdo.dotw
+        //const sorted_si = sortIntervals(intervalSets)
+        const split = splitUnionOverlappingIntervalSets(intervalSets)
+
+        console.log("split: ", split)
+
+        split.forEach(intervalSet=>{
+
+            //const employeeInfo = intervalSet.set.map(getEmployeeById).map(({name})=>name).join(', ')
+
+            const employee_ids = _.cloneDeep(intervalSet.set).sort().join(',')
+
+            const startHoursMinutes = intervalSet.startTimeToHMObject()   
+            const endHoursMinutes = intervalSet.endTimeToHMObject()
+
+            const key = `${intervalSet.start}_${intervalSet.end}_${employee_ids}`
+
+            calendarEvents.push({
+                id: calendarEvents.length + 100, 
+                start: new Date("2023", 10, dayOfTheWeek, startHoursMinutes.h , startHoursMinutes.m , 0, 0), 
+                end: new Date("2023", 10, dayOfTheWeek, endHoursMinutes.h, endHoursMinutes.m, 0, 0), 
+                type: setKey,
+                key: key,
+               // title: setKey === 'breaks' ? `Break for: ${employeeInfo}` : `Shift for: ${employeeInfo}`,
+                employee_ids: employee_ids//_.cloneDeep(intervalSet.set).sort().join(',')
+            })  
+        }) 
+
+    })
+
+    return calendarEvents      
+}
+
+export function createScedualeCalendarEvents(workDayObjects){
+
+    const calendarEvents = []
+
+    workDayObjects.forEach(wdo=>{
+
+        const {shifts, breaks} = wdo
+
+        const dayOfTheWeek = 20+wdo.dotw
+        //const sorted_si = sortIntervals(intervalSets)
+        const split = splitDiffOverlappingIntervalSets(shifts,breaks)
+
+        console.log("split: ", split)
+
+        split.forEach(intervalSet=>{
+
+            const employeeInfo = intervalSet.set.map(getEmployeeById).map(({name})=>name).join(', ')
+
+            const missing = intervalSet.missing_elements.map(getEmployeeById).map(({name})=>name).join(', ')
+
+            const startHoursMinutes = intervalSet.startTimeToHMObject()   
+            const endHoursMinutes = intervalSet.endTimeToHMObject()
+
+            calendarEvents.push({
+                id: calendarEvents.length + 100, 
+                start: new Date("2023", 10, dayOfTheWeek, startHoursMinutes.h , startHoursMinutes.m , 0, 0), 
+                end: new Date("2023", 10, dayOfTheWeek, endHoursMinutes.h, endHoursMinutes.m, 0, 0), 
+                type: "shifts",
+                title: `avail: ${employeeInfo} non-avail: ${missing}`,
+                employee_ids: intervalSet.set.join(',')
+            })  
+        }) 
+
+    })
+
+    return calendarEvents      
+}
+
+export function splitUnionOverlappingIntervalSets(intervalSets){
+
+    intervalSets = intervalSets ?? []
+    
+    if(intervalSets.length == 0 ) return []
+
+    intervalSets = _.cloneDeep(sortIntervals(intervalSets))
+    
+    let overlapping_intervals = []
+    
+    //2n
+    function splitOverlap(split_value, overlapping_interval_index){
+    
+        const overlapping_interval = overlapping_intervals[overlapping_interval_index]
+
+        const {start, end, set} = overlapping_interval
+        const left_split_interval = new IntervalSet(start,split_value,set)
+        const right_split_interval = new IntervalSet(split_value,end, set)
+    
+        overlapping_intervals.splice(overlapping_interval_index, 1 ,[left_split_interval,right_split_interval])
+        overlapping_intervals = overlapping_intervals.flat()
+    }
+    
+    const getMaxEnd = ()=> overlapping_intervals[overlapping_intervals.length-1].interval.end
+    
+    //n
+    function splitStart(start){
+    
+        const size = overlapping_intervals.length
+        let i = size-1
+    
+        while(i >= 0){
+            const intervalSet = overlapping_intervals[i]
+        
+            const left = intervalSet.start
+            const right = intervalSet.end
+                
+            if(start === left){
+                break
+            }
+            if(start < right && start > left){
+                splitOverlap(start, i)
+                i++//when we split on the start, we need to increment the i so the new overlap gets unioned 
+                break
+            }
+            i--
+        }
+        return i
+    }
+    
+    //n
+    function splitEnd(end, splitee_set){
+    
+        const size = overlapping_intervals.length
+        let i = size-1
+    
+        if(end > getMaxEnd()){
+            overlapping_intervals.push(new IntervalSet(getMaxEnd(),end,splitee_set))
+            return i
+        }
+    
+        while(i >= 0){   
+            const intervalSet = overlapping_intervals[i]
+        
+            const left = intervalSet.start
+            const right = intervalSet.end
+        
+            if(end === right){
+                return i
+            }
+            if(end > left){
+                splitOverlap(end, i)
+                return i
+            }
+            i--
+        }
+    }
+    
+    //add the first interval to the return list
+    overlapping_intervals.push(intervalSets[0])
+    
+    for(let i = 1; i < intervalSets.length; i++){
+
+        const intervalSet = intervalSets[i]
+    
+       // const interval = intervalSets[i].interval
+        const interval_start = intervalSet.start
+        let interval_end = intervalSet.end
+        let splitee_set = intervalSet.set //save the set of the interval were about to split
+    
+        //if this interval is disjointed from the currently stored intervals, just add it to the tail and process next interval
+        //(equal end/start points are considered disjointed because they dont overlap)
+        if(interval_start >= getMaxEnd()){
+            overlapping_intervals.push(new IntervalSet(interval_start, interval_end, splitee_set))
+            //overlapping_intervals.push({interval: interval, map: _.cloneDeep(splitee_set)})//make a copy of the map
+            continue  
+        }
+    
+        //split the start value and store the index of the split interval
+        const split_interval_start_index = splitStart(interval_start) 
+    
+        //split the end value and store the index of the split interval
+        const split_interval_end_index = splitEnd(interval_end, splitee_set)
+    
+        //increment the overlap counts from split_interval_start_index to split_interval_end_index
+        for(let i = split_interval_start_index ; i <= split_interval_end_index; i++){
+            const overlap_interval = overlapping_intervals[i]
+            const unioned_set_arr = _.union(splitee_set, overlap_interval.set) //instead of incrementing, union the sets
+            overlap_interval.set = _.cloneDeep(unioned_set_arr)
+        }
+    
+    }
+    
+    return overlapping_intervals
+}
+
+//version thats working but is inefficient
+// can be optimized using 2 pointer approach
+export function splitDiffOverlappingIntervalSets(availabilityIntervalSets, unavailabilityIntervalSets){
+
+    const getTail = (intervals)=> intervals[intervals.length-1].end
+    const getHead = (intervals)=> intervals[0].start
+
+    availabilityIntervalSets = availabilityIntervalSets ?? []
+    unavailabilityIntervalSets = unavailabilityIntervalSets ?? []
+
+    if(availabilityIntervalSets.length == 0 ) return []
+    if(unavailabilityIntervalSets.length == 0 ) return availabilityIntervalSets
+    
+    //make sure both interval sets are disjointed with overlap sets merged
+    availabilityIntervalSets = splitUnionOverlappingIntervalSets(availabilityIntervalSets)
+    unavailabilityIntervalSets = splitUnionOverlappingIntervalSets(unavailabilityIntervalSets)
+
+    if(getTail(availabilityIntervalSets) <= getHead(unavailabilityIntervalSets) || //the entire unavailability set overruns the end of the availability set
+       getTail(unavailabilityIntervalSets) <= getHead(availabilityIntervalSets)){  //the entire unavailability set underruns the start of the availability set
+        return availabilityIntervalSets
+    }
+    
+    function splitInterval(split_value, overlapping_interval_index){
+    
+        const {start, end, set} = overlapping_intervals[overlapping_interval_index]
+
+        const left_split_interval = new IntervalSet(start,split_value,set)
+        const right_split_interval = new IntervalSet(split_value,end, set)
+  
+        overlapping_intervals.splice(overlapping_interval_index, 1 ,[left_split_interval,right_split_interval])
+        overlapping_intervals = overlapping_intervals.flat()
+
+    }
+    
+
+    function findSplitInterval(split_value){
+
+        //if the split value lies outside the left/right boundaries of the availabilityIntervalSets, theres nothing to split
+        if(split_value <= getHead(overlapping_intervals) || split_value >= getTail(overlapping_intervals))
+                return;
+
+        for(let i = 0; i < overlapping_intervals.length; i++){
+            const {start, end} = overlapping_intervals[i]
+
+            if(split_value < start) break;
+
+            if(split_value > start && split_value < end){
+                splitInterval(split_value, i)
+                break           
+            }
+        }
+    }
+
+    let overlapping_intervals = _.cloneDeep(availabilityIntervalSets)
+    
+    for(let i = 0; i < unavailabilityIntervalSets.length; i++){
+
+        const {start, end, set} = unavailabilityIntervalSets[i]
+
+        //skip unavailability intervals that end before the begining of the availability intervals
+        if(end <= getHead(overlapping_intervals)){
+            continue;
+        }
+
+        findSplitInterval(start) 
+        findSplitInterval(end)
+
+        //capture all the intervals that lie in-between start and end inclusive
+       // const greater_equal = overlapping_intervals.filter(is=>is.start >= start)
+       // const less_equal  = overlapping_intervals.filter(is=>is.end <= end)
+        //const intersect = _.intersectionWith(greater_equal, less_equal, _.isEqual);
+
+        //bracket all the intervals that lie in-between start and end inclusive
+        const overlappingSubSet = overlapping_intervals.filter(is=>is.end <= end && is.start >= start)
+
+        overlappingSubSet.forEach(is=>{
+            //const diff = _.difference(is.set,set) 
+           // is.set = _.cloneDeep(diff)
+           //find the elements in unavailability set not in the availability set
+           is.missing_elements = _.cloneDeep( _.difference(set,is.set) ) 
+           //remove elements from availability set contained in availability set
+           is.set = _.cloneDeep( _.difference(is.set,set) ) 
+        })
+      
+    }
+    
+    return overlapping_intervals
+}
+
+
+/*
 
 //input: arr of employee_sceduale objects {intervaL: interval, employees: [stringId0, sid1, ...]}
 export function splitUnionOverlappingIntervalSets(intervals){
@@ -269,191 +589,36 @@ export function splitUnionOverlappingIntervalSets(intervals){
     return overlapping_intervals
 }
 
+//old but updated from original
+export function splitDiffOverlappingIntervalSets_test(availabilityIntervalSets, unavailabilityIntervalSets){
 
-export function getMinMaxWorkingPlanTimes_obj_test(openCloseTimes){
+    availabilityIntervalSets = availabilityIntervalSets ?? []
+    unavailabilityIntervalSets = unavailabilityIntervalSets ?? []
 
+    if(availabilityIntervalSets.length == 0 ) return []
     
-    if(!openCloseTimes.some(wp=>wp.open && wp.close)){ //when working plan does not have at least a single set open/close time
-        return { startMin: {h:0, m:0}, endMax: {h:23, m:59} }
-    }
+    //make sure both interval set inputs are disjointed with overlap sets merged
+    availabilityIntervalSets = splitUnionOverlappingIntervalSets(availabilityIntervalSets)
+    unavailabilityIntervalSets = splitUnionOverlappingIntervalSets(unavailabilityIntervalSets)
 
-    let minMinutes =   MAX_MINUTES_IN_DAY
-    let maxMinutes =   0
-
-    openCloseTimes.forEach((wp)=>{
-        const {open, close} = wp
-
-        if(open && close){
-            minMinutes = Math.min(open, minMinutes)
-            maxMinutes = Math.max(close, maxMinutes)
-        }
-    })
-
-    return { startMin: Interval.totalMinutesToHoursMinutesObject(minMinutes), endMax: Interval.totalMinutesToHoursMinutesObject(maxMinutes)}
-}
-
-
-export function createCloseIntervals_obj_test(workDayObjects, startMin, endMax){
-  
-    if(workDayObjects.length !== 7){
-      throw new Error("workDayObjects must have exactly 7 objects; 1 for each day of the week")
-    }
-
-    const isEqual = (t1, t2) => t1.h === t2.h && t1.m === t2.m
-
-    const closeIntervals = []
-
-    const createCloseInterval = (startHM, endHM, weekStart) => {
-      closeIntervals.push({
-        id: closeIntervals.length, 
-        start: new Date("2023", 10, weekStart, startHM.h , startHM.m , 0, 0), 
-        end: new Date("2023", 10, weekStart, endHM.h, endHM.m, 0, 0), 
-      })
-    }
-
-    let weekStart = 20 // set the starting dotw to nov 20 2023; a monday
-
-    workDayObjects.forEach(wdo=>{
-        const {open, close, dotw} = wdo 
-        const weekDay = weekStart + dotw
-
-        if(open && close){ //if the store is open (start and end are not empty strings)
-
-            const startHoursMinutes = Interval.totalMinutesToHoursMinutesObject(open)
-
-            if(!isEqual(startHoursMinutes, startMin)){  
-                createCloseInterval(startMin, startHoursMinutes, weekDay)
-            }
-
-            const endHoursMinutes = Interval.totalMinutesToHoursMinutesObject(close)
-            
-            if(!isEqual(endHoursMinutes, endMax)){
-                createCloseInterval(endHoursMinutes, endMax, weekDay)
-            }
-        }
-        else{ //otherwise mark the entire day as clossed
-            createCloseInterval(startMin, endMax, weekDay)    
-        }
-    })
-
-    return closeIntervals;
-}
-
-
-export function fillInEmptyDays_test(workDayObjects){
-
-    const daysOfTheWeek = new Set(Object.keys(DOTW).map(dotw=>DOTW[dotw]))
-  
-    workDayObjects.forEach(ds=>daysOfTheWeek.delete(ds.dotw))
-
-    daysOfTheWeek.forEach(d=>{
-
-    workDayObjects.push(
-        new WorkDay(d, "", "", [], [])
-        
-    )})
-  
-     return workDayObjects
- }
-
-export function initObjects(workdays){
-
-    const workDayObjects = []
-
-    workdays.forEach(wd=>{
-        const {dotw, open, close, shifts, breaks} = wd
-
-        const s = shifts.map(getShiftById).map(({start, end, employees})=>new IntervalSet(start,end,employees))
-        const b = breaks.map(getBreakById).map(({start, end, employees})=>new IntervalSet(start,end,employees))
-
-        workDayObjects.push(new WorkDay(dotw,open,close,s,b))
-    })
-
-    return fillInEmptyDays_test(workDayObjects)
-
-}
-
-export function createCalendarEvents_test(workDayObjects, setKey){
-
-    const calendarEvents = []
-
-    workDayObjects.forEach(wdo=>{
-
-        const intervalSets = wdo[setKey]
-
-        const dayOfTheWeek = 20+wdo.dotw
-        const sorted_si = sortIntervals(intervalSets)
-        const split = splitUnionOverlappingIntervalSets_test(sorted_si)
-
-        console.log("split: ", split)
-
-        split.forEach(intervalSet=>{
-
-            const {start, end, set} = intervalSet
-
-            console.log("employee ids: ", set)
-
-            const startHoursMinutes = totalMinutesToHoursMinutes (start)     
-            const endHoursMinutes = totalMinutesToHoursMinutes (end)
-
-            calendarEvents.push({
-                id: calendarEvents.length + 100, 
-                start: new Date("2023", 10, dayOfTheWeek, startHoursMinutes.h , startHoursMinutes.m , 0, 0), 
-                end: new Date("2023", 10, dayOfTheWeek, endHoursMinutes.h, endHoursMinutes.m, 0, 0), 
-                type: setKey,
-                title: setKey === 'breaks' ? "Break" : "Shift",
-                employee_ids: set.join(',')
-            })  
-        }) 
-
-    })
-
-    return calendarEvents      
-}
-
-//input: arr of employee_sceduale objects {intervaL: interval, employees: [stringId0, sid1, ...]}
-export function splitUnionOverlappingIntervalSets_test(intervalSets){
-
-    intervalSets = intervalSets ?? []
-    
-    if(intervalSets.length == 0 ) return []
-    
-    //employees is an array of id strings
-    //insert into set for each interval
-    //intervalSets = intervalSets.map(ji=>({interval: new Interval(ji.start, ji.end), map: _.cloneDeep(ji.employees)}))
-
-    intervalSets = _.cloneDeep(intervalSets)
-    
-    let overlapping_intervals = []
+    let overlapping_intervals = _.cloneDeep(availabilityIntervalSets)
     
     //2n
     function splitOverlap(split_value, overlapping_interval_index){
     
         const overlapping_interval = overlapping_intervals[overlapping_interval_index]
-    
-        const left = overlapping_interval.start
-        const right= overlapping_interval.end
-        const set = overlapping_interval.set
 
-        const left_split_interval = new IntervalSet(left,split_value,set)
-        const right_split_interval = new IntervalSet(split_value,right,set)
-    
-        /*
-        const left_split_interval = {
-            interval: new Interval(left, split_value),
-            map: _.cloneDeep(map) //MAKE A NEW COPY
-        }
-    
-        const right_split_interval =  {
-            interval: new Interval(split_value, right),
-            map: _.cloneDeep(map) //MAKE A NEW COPY
-        }
-    */
+        const {start, end, set} = overlapping_interval
+
+        const left_split_interval = new IntervalSet(start,split_value,set)
+        const right_split_interval = new IntervalSet(split_value,end, set)
+  
         overlapping_intervals.splice(overlapping_interval_index, 1 ,[left_split_interval,right_split_interval])
         overlapping_intervals = overlapping_intervals.flat()
+
     }
     
-    const getMaxEnd = ()=> overlapping_intervals[overlapping_intervals.length-1].interval.end
+    const getMaxEnd = ()=> overlapping_intervals[overlapping_intervals.length-1].end
     
     //n
     function splitStart(start){
@@ -487,13 +652,13 @@ export function splitUnionOverlappingIntervalSets_test(intervalSets){
         let i = size-1
     
         if(end > getMaxEnd()){
+            console.log("end > getMaxEnd()")
+           // overlapping_intervals.push({
+              //  interval: new Interval(getMaxEnd(), end),
+              //  map: _.cloneDeep(splitee_map)
+           // })
 
-            /*overlapping_intervals.push({
-                interval: new Interval(getMaxEnd(), end),
-                map: _.cloneDeep(splitee_map)
-            })*/
-
-            overlapping_intervals.push(new IntervalSet(getMaxEnd(),end,splitee_set))
+            //overlapping_intervals.push(new IntervalSet(getMaxEnd(),end,splitee_set))
 
             return i
         }
@@ -507,6 +672,158 @@ export function splitUnionOverlappingIntervalSets_test(intervalSets){
             if(end === right){
                 return i
             }
+            if(end > left && end < right){ //if(end > left){
+                splitOverlap(end, i)
+                return i
+            }
+            i--
+        }
+
+        return i;
+    }
+    
+    //add the first interval to the return list
+    //overlapping_intervals.push(intervalSets[0])
+    
+    for(let i = 0; i < unavailabilityIntervalSets.length; i++){
+
+        const {start, end, set} = unavailabilityIntervalSets[i]
+
+        //const intervalSet = unavailabilityIntervalSets[i]
+
+
+    
+       // const interval = intervalSets[i].interval
+       // const interval_start = intervalSet.start
+       // let interval_end = intervalSet.end
+       // let splitee_set = intervalSet.set //save the set of the interval were about to split
+    
+        //if this interval is disjointed from the currently stored intervals, just add it to the tail and process next interval
+        //(equal end/start points are considered disjointed because they dont overlap)
+        if(start >= getMaxEnd()){
+            console.log("start >= getMaxEnd()")
+            //overlapping_intervals.push(new IntervalSet(interval_start, interval_end, splitee_set))
+            //overlapping_intervals.push({interval: interval, map: _.cloneDeep(splitee_set)})//make a copy of the map
+            continue  
+        }
+
+    
+        //split the start value and store the index of the split interval
+        const split_interval_start_index = splitStart(start) 
+    
+        //split the end value and store the index of the split interval
+        const split_interval_end_index = splitEnd(end, set)
+
+        console.log("split_interval_start_index ",split_interval_start_index)
+        console.log("split_interval_end_index ",split_interval_end_index)
+        console.log("overlapping_intervals ", overlapping_intervals)
+
+        //split_interval_start_index ;
+        //let i = Math.max(split_interval_start_index,0) this is a hacky solution for now
+        
+        //split_interval_end_index becomes UNDEFINED when it cant be found within overlapping_intervals
+
+        //increment the overlap counts from split_interval_start_index to split_interval_end_index
+        for(let i = Math.max(split_interval_start_index,0) ; i <= split_interval_end_index; i++){
+            const overlap_interval = overlapping_intervals[i]
+            const unioned_set_arr = _.difference(overlap_interval.set,set) //instead of incrementing, union the sets
+            overlap_interval.set = _.cloneDeep(unioned_set_arr)
+        }
+    
+    }
+    
+    return overlapping_intervals
+}
+
+//original
+function splitDiffOverlapIntervals_test(availability_sets, unavailability_sets){
+
+    availability_sets = availability_sets ?? []
+    unavailability_sets = unavailability_sets ?? []
+    
+    if(availability_sets.length == 0 ) return []
+    
+    //employees is an array of id strings
+    //insert into set for each interval
+   // intervals = intervals.map(ji=>({interval: ji.interval, map: _.cloneDeep(ji.employees)}))
+    
+
+    //2n
+    function splitOverlap(split_value, overlapping_interval_index){
+    
+        const overlapping_interval = overlapping_intervals[overlapping_interval_index]
+    
+        const left = overlapping_interval.interval.start
+        const right= overlapping_interval.interval.end
+        const map = overlapping_interval.map
+    
+        const left_split_interval = {
+            interval: new Interval(left, split_value),
+            map: _.cloneDeep(map) //MAKE A NEW COPY
+        }
+    
+        const right_split_interval =  {
+            interval: new Interval(split_value, right),
+            map: _.cloneDeep(map) //MAKE A NEW COPY
+        }
+    
+        overlapping_intervals.splice(overlapping_interval_index, 1 ,[left_split_interval,right_split_interval])
+        overlapping_intervals = overlapping_intervals.flat()
+    }
+    
+    const getMaxEnd = ()=> overlapping_intervals[overlapping_intervals.length-1].interval.end
+    
+    //n
+    function splitStart(start){
+    
+        const size = overlapping_intervals.length
+        let i = size-1
+    
+        while(i >= 0){
+            const interval = overlapping_intervals[i]
+        
+            const left = interval.interval.start
+            const right = interval.interval.end
+                
+            if(start === left){
+                break
+            }
+            if(start < right && start > left){
+                splitOverlap(start, i)
+                i++//when we split on the start, we need to increment the i so the new overlap gets unioned 
+                break
+            }
+            i--
+        }
+        return i
+    }
+    
+    //n
+    function splitEnd(end, splitee_map){
+    
+        const size = overlapping_intervals.length
+        let i = size-1
+    
+        if(end > getMaxEnd()){
+            //once again, a break interval falls outside the scedule
+            //this should throw an exception (breaks must fall within a scedule
+            //OR i can just set the end to the MaxEnd, ignoring the overrun
+           // overlapping_intervals.push({
+             //   interval: new Interval(getMaxEnd(), end),
+             //   map: _.cloneDeep(splitee_map)
+           // })
+            return i
+        }
+    
+        while(i >= 0){   
+            const interval = overlapping_intervals[i]
+        
+            const left = interval.interval.start
+            const right = interval.interval.end
+        
+            if(end === right){
+                return i
+            }
             if(end > left){
                 splitOverlap(end, i)
                 return i
@@ -515,23 +832,24 @@ export function splitUnionOverlappingIntervalSets_test(intervalSets){
         }
     }
     
-    //add the first interval to the return list
-    overlapping_intervals.push(intervalSets[0])
+    //clone/add the availability set intervals
+   let overlapping_intervals = _.cloneDeep(availability_sets)
     
-    for(let i = 1; i < intervalSets.length; i++){
-
-        const intervalSet = intervalSets[i]
+    //for each unavailability(break) interval
+    for(let i = 0; i < unavailability_sets.length; i++){
     
-       // const interval = intervalSets[i].interval
-        const interval_start = intervalSet.start
-        let interval_end = intervalSet.end
-        let splitee_set = intervalSet.set //save the set of the interval were about to split
+        const interval = unavailability_sets[i].interval
+        const interval_start = interval.start
+        let interval_end = interval.end
+        let splitee_map = unavailability_sets[i].map //save the set of the interval were about to split
     
         //if this interval is disjointed from the currently stored intervals, just add it to the tail and process next interval
         //(equal end/start points are considered disjointed because they dont overlap)
         if(interval_start >= getMaxEnd()){
-            overlapping_intervals.push(new IntervalSet(interval_start, interval_end, splitee_set))
-            //overlapping_intervals.push({interval: interval, map: _.cloneDeep(splitee_set)})//make a copy of the map
+
+            //a break falls outside the sceduale
+            //just skip this 
+           // overlapping_intervals.push({interval: interval, map: _.cloneDeep(splitee_map)})//make a copy of the map
             continue  
         }
     
@@ -539,22 +857,26 @@ export function splitUnionOverlappingIntervalSets_test(intervalSets){
         const split_interval_start_index = splitStart(interval_start) 
     
         //split the end value and store the index of the split interval
-        const split_interval_end_index = splitEnd(interval_end, splitee_set)
+        const split_interval_end_index = splitEnd(interval_end, splitee_map)
     
-        //assert.equal(split_interval_start_index <= split_interval_end_index, true, 
-        //`split_interval_start_index ${split_interval_start_index} is always <= split_interval_end_index ${split_interval_end_index} `);
+        assert.equal(split_interval_start_index <= split_interval_end_index, true, 
+        `split_interval_start_index ${split_interval_start_index} is always <= split_interval_end_index ${split_interval_end_index} `);
     
         //increment the overlap counts from split_interval_start_index to split_interval_end_index
         for(let i = split_interval_start_index ; i <= split_interval_end_index; i++){
             const overlap_interval = overlapping_intervals[i]
-            const unioned_set_arr = _.union(splitee_set, overlap_interval.set) //instead of incrementing, union the sets
-            overlap_interval.set = _.cloneDeep(unioned_set_arr)
+            const unioned_set_arr = _.difference(overlap_interval.map,splitee_map ) //instead of incrementing, union the sets
+            overlap_interval.map = _.cloneDeep(unioned_set_arr)
+           // overlap_interval.overlap =  overlap_interval.overlap+1
+           // assert.equal(overlap_interval.overlap <= intervals.length, true, "max # of interval overlaps must be <= the input size ");
         }
     
     }
     
     return overlapping_intervals
 }
+
+*/
 
 
 
