@@ -9,78 +9,25 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 
 import './App.css'
 
+import TestingPage from "./TestingPage"
+
 import {employees, shifts, breaks, workdays, services,getEmployeeById } from "./assets/data"
 
-const mock_data = [
-  {
-    breaks: [
-      {start: '09:00', end: '09:15', days: ['Mon', 'Tue', 'Wed', 'Thu'], id: '657f6325fd889192b66917bf'},
-      {start: '12:00', end: '13:00', days: ['Mon', 'Tue', 'Wed', 'Thu'], id: '657f6325fd889192b66917c0'}, 
-      {start: '11:00', end: '11:30', days: ['Fri'], id: '657f6325fd889192b66'}
-    ],
 
-    workingPlan: [
-      {
-          "start": "08:00",
-          "end": "17:00",
-          "day": "Mon",
-          "id": "657f6325fd889192b66917b8"
-      },
-      {
-          "start": "08:00",
-          "end": "17:00",
-          "day": "Tue",
-          "id": "657f6325fd889192b66917b9"
-      },
-      {
-          "start": "08:00",
-          "end": "17:00",
-          "day": "Wed",
-          "id": "657f6325fd889192b66917ba"
-      },
-      {
-          "start": "08:00",
-          "end": "17:00",
-          "day": "Thu",
-          "id": "657f6325fd889192b66917bb"
-      },
-      {
-          "start": "09:00",
-          "end": "14:00",
-          "day": "Fri",
-          "id": "657f6325fd889192b66917bc"
-      },
-      {
-          "start": "",
-          "end": "",
-          "day": "Sat",
-          "id": "657f6325fd889192b66917bd"
-      },
-      {
-          "start": "",
-          "end": "",
-          "day": "Sun",
-          "id": "657f6325fd889192b66917be"
-      }
-    ],
-    serviceDurations: [],
-    id: 0,
-  }
-]
+
 
 function App() {
 
   const [body, setBody] = useState("availability")
 
-  const {calendarProps} = useAvailability(mock_data)
- 
   return (<>
     <div className="header">
       <span onClick={e=>setBody("config")}>Configuration</span>
       <span onClick={e=>setBody("availability")}>Availability</span>
+      <span onClick={e=>setBody("testing")}>Testing</span>
     </div>
     <div className="body">
-      {body === "availability" ? <AvailabilityPage/> : <ConfigurationPage/>} 
+      {body === "availability" ? <AvailabilityPage/> : (body === "config" ? <ConfigurationPage/> : <TestingPage/>)} 
     </div>
   </> )
 }
