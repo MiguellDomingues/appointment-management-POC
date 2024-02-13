@@ -110,3 +110,49 @@
   outline: blue solid 3px;
 }
 
+.fullscreen_overlay{
+  display: block; /* Hidden by default */
+  position: fixed; /* Stay in place */
+  z-index: 3; /* Sit on top */
+ /* padding-top: 15%;  Location of the box */
+  left: 0;
+  top: 0;
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: auto; /* Enable scroll if needed */
+  background-color: rgb(0,0,0); /* Fallback color */
+  background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+}
+
+.modal_container{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100%;
+  min-width: 100%;
+}
+
+.close_wrapper{
+  position: relative;
+}
+
+.cancel_panel_btn{
+  z-index: 999;
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+.modal_form_body{
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 500px;
+  width: 250px;
+  background-color: white;
+}
+
+
+
+
+
