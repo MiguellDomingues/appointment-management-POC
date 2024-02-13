@@ -13,6 +13,8 @@ const DOTW = Object.freeze({
     Sunday: 6
 })
 
+export const DOTW_STRINGS = Object.keys(DOTW)
+
 export class WorkDay{
 
     constructor(dotw, open, close, shifts, breaks){
