@@ -21,50 +21,15 @@ import TimeGrid from "react-big-calendar/lib/TimeGrid";
 moment.locale("en-CA");
 const localizer = momentLocalizer(moment);
 
-/*
-const defaultWorkingPlan = [
-    {
-        day: "Monday",
-        start: "",
-        end:   "",
-    },
-    {
-        day: "Tuesday",
-        start: "",
-        end:   "",
-    },
-    {
-        day: "Wednesday",
-        start: "",
-        end:   "",
-    },
-    {
-        day: "Thursday",
-        start: "",
-        end:   "",
-    },
-    {
-        day: "Friday",
-        start: "",
-        end:   ""
-    },
-    {
-        day: "Saturday",
-        start: "",
-        end:   ""
-    },
-    {
-        day: "Sunday",
-        start: "",
-        end:   ""
-    },
-]*/
-  
 function useAvailability(dataArr = [], checkBox){
 
     ////////////////////////states
     const [locationId, setLocationId] = useState(null)
-    const [workingPlan, setWorkingPlan] = useState([...workdays])
+
+    //const [workingPlan, setWorkingPlan] = useState([...workdays])
+
+    const [workingPlanObjects, setworkingPlanObjects] = useState(()=>initObjects(workdays))
+
     const [serviceDurations, setServiceDurations] = useState([])
     //const [breaks, setWorkingBreaks] = useState([])
 
@@ -78,7 +43,7 @@ function useAvailability(dataArr = [], checkBox){
    // console.log("serviceDurations ", serviceDurations)
    // console.log("breaks ", breaks)
 
-    const workingPlanObjects = useMemo( ()=>initObjects(workingPlan), [workingPlan])
+    //const workingPlanObjects = useMemo( ()=>initObjects(workingPlan), [workingPlan])
 
     const minMaxInterval = useMemo( ()=>getMinMaxWorkingPlanTimes(workingPlanObjects), [workingPlanObjects])
 
@@ -180,7 +145,7 @@ function useAvailability(dataArr = [], checkBox){
         },
         
         workingPlanListProps: {
-            workingPlan,
+           // workingPlan,
            // updateWorkingPlanDay: (...props) => updateWorkingPlan(...props, locationId),//updateWorkingPlan, //re-alias callout names to match cmp prop names
            // loading: loadingUpdateWorkingPlan
         },
