@@ -9,13 +9,6 @@ import {employees, shifts, breaks,workDays } from "./assets/mock_data"
 
 import { DOTW_STRINGS } from "./classes"
 
-/*
-console.log(nanoid())
-console.log(nanoid())
-console.log(nanoid())
-console.log(nanoid())
-console.log(nanoid())
-*/
 
 const createShiftsSlice = 
 
@@ -42,7 +35,13 @@ const createShiftsSlice =
                 set(
                 produce((draft) => {
                     const shiftsIndex = draft.shifts.findIndex((el) => el.id === payload);
-                    draft.shifts.splice(shiftsIndex, 1);              
+                    draft.shifts.splice(shiftsIndex, 1); 
+                    
+                    draft.workDays.forEach((workDay)=>{
+                        //workDay.breaks = workDay.breaks.filter(b_id=>b_id !== payload)
+                        const shiftsIndex = workDay.shifts.findIndex((id) => id === payload);
+                        shiftsIndex >= 0 && workDay.shifts.splice(shiftsIndex, 1);
+                    })
                 })
                 ),
             patchShift: (payload) =>
@@ -77,9 +76,10 @@ const createBreaksSlice =
                 set(
                     produce(
                         (draft) => {
-                                    const {start, end, employees} = payload
+                                    const {start, end, employees, desc} = payload
                                     draft.breaks.push({
                                         id: nanoid(),
+                                        desc: desc,
                                         start: start,
                                         end:   end,
                                         employees: employees
@@ -93,16 +93,21 @@ const createBreaksSlice =
                         const breaksIndex = draft.breaks.findIndex((el) => el.id === payload);
                         draft.breaks.splice(breaksIndex, 1);  
                         
-                        
+                        draft.workDays.forEach((workDay)=>{
+                            //workDay.breaks = workDay.breaks.filter(b_id=>b_id !== payload)
+                            const breaksIndex = workDay.breaks.findIndex((id) => id === payload);
+                            breaksIndex >= 0 && workDay.breaks.splice(breaksIndex, 1);
+                        })
                     })
                 ),
             patchBreak: (payload) =>
             set(
                 produce((draft) => {
                     console.log("patchBreak: ", payload)
-                    const {id, start, end, employees} = payload
+                    const {id, start, end, employees, desc} = payload
                     const breakToPatch = draft.breaks.find((_break) => _break.id === id);
 
+                    breakToPatch.desc = desc;
                     breakToPatch.start = start;
                     breakToPatch.end = end;
                     breakToPatch.employees = employees;
