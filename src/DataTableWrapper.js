@@ -83,7 +83,7 @@ function DataTableWrapper({
 
     return (<>
         <ModalWrapper isOpen={!!formState} close={handleCloseForm}>
-            {cloneElement(FormCmp,{formState, ...getFormProps(formState,selectedRowId)})} 
+            {cloneElement(FormCmp,{formState, newObj, ...getFormProps(formState,selectedRowId)})} 
         </ModalWrapper> 
    
         <DataTable
