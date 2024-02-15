@@ -1,11 +1,22 @@
 
-import { useState, useMemo, useRef,cloneElement } from "react"
+import { useState, useMemo, useRef,cloneElement, useCallback } from "react"
 
+import React from "react"
+
+import { useForm } from 'react-hook-form'
+
+import _  from 'lodash';
 
 import useBoundStore from "./store";
 import DataTableWrapper from './DataTableWrapper'
 
-import {ShiftForm, EmployeeForm, BreakForm,WorkDayForm} from './Form'
+
+import {
+    EmployeeForm, 
+    ShiftForm,
+    BreakForm,
+    WorkDayForm
+} from './Forms'
 
 function useEmployees(){
 
@@ -151,6 +162,8 @@ function useWorkDays(){
         removeWorkDay,
         getWorkDayById,
         getWorkDaySchema,
+        getShiftById,
+        getBreakById, 
     } = useBoundStore((state) => ({...state})) //shorthand to get all data/funcs of obj
 
     const workDayColumns = [
@@ -172,7 +185,7 @@ function useWorkDays(){
         },
         {
             name: 'shifts',
-            selector: row => row.shifts.join(","),
+            selector: row => row.shifts.map(id=>getShiftById(id).desc).join(","), //row.shifts.join(","),
         },
         {
             name: 'breaks',
@@ -200,6 +213,7 @@ function TestingPage(){
     const breakProps = useBreaks()
     const workDayProps = useWorkDays()
 
+
     return (<>
         <div>
            <DataTableWrapper {...shiftProps} />
@@ -210,15 +224,67 @@ function TestingPage(){
         <div>
             <DataTableWrapper {...breakProps} />
         </div>
-        <div>
-            <DataTableWrapper {...workDayProps} />
+        <div>        
+            {<DataTableWrapper {...workDayProps} />}
         </div>
     </> )
-  }
+}
 
+
+
+ 
+/*
+ <Input name="lastName" type="number"/>
+ <Select name="gender" options={["female", "male", "other"]} />
+
+
+*/
+
+
+
+/*
+ function test(children){
+
+        const a = React.Children.map(children, (child) => {
+
+            
+            console.log("-----child:------- ", child)
+
+            if(child.props?.children){
+                console.log("************i have children: *****************", child.props?.children)
+               return React.createElement(child.type, {...{...child.props},}, test(child.props.children))
+
+            }
+
+            if(child.props?.name){
+
+                console.log("create w/ name")
+                console.log("child.props.name: ", child.props.name)
+                console.log("child.type: ", child.type)
+
+
+                return  React.createElement(
+                    child.type, 
+                {
+                  ...{
+                    ...child.props,
+                    register: register,//methods.register,
+                    key: child.props.name,
+                  },
+                })
+            }else
+                return child
+
+        })
+
+        console.log("results of react.children.map: ", a)
+
+        return a
+
+    }
+*/
 
   /*
-
 
 () => {
   const [selectedRows, setSelectedRows] = React.useState([]);
