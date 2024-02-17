@@ -3,7 +3,7 @@ import _  from 'lodash';
 
 import { WorkDay, IntervalSet, Interval } from './classes.js'
 
-import { getBreakById, getShiftById, getEmployeeById  } from './assets/data.js'
+//import { getBreakById, getShiftById, getEmployeeById  } from './assets/data.js'
 
 const MAX_MINUTES_IN_DAY = 60*23 + 59
 
@@ -151,7 +151,7 @@ export function fillInEmptyDays(workDayObjects){
      return workDayObjects
  }
 
-export function initObjects(workdays){
+export function initObjects(workdays,getBreakById, getShiftById){
 
     const workDayObjects = []
 
@@ -211,7 +211,7 @@ export function createAvailabilityCalendarEvents(workDayObjects, setKey){
     return calendarEvents      
 }
 
-export function createScedualeCalendarEvents(workDayObjects){
+export function createScedualeCalendarEvents(workDayObjects,getEmployeeById){
 
     const calendarEvents = []
 
@@ -227,9 +227,14 @@ export function createScedualeCalendarEvents(workDayObjects){
 
         split.forEach(intervalSet=>{
 
+            
+
             const employeeInfo = intervalSet.set.map(getEmployeeById).map(({name})=>name).join(', ')
 
             const missing = intervalSet.missing_elements.map(getEmployeeById).map(({name})=>name).join(', ')
+
+           // console.log("employeeInfo",employeeInfo)
+           // console.log("missing",missing)
 
             const startHoursMinutes = intervalSet.startTimeToHMObject()   
             const endHoursMinutes = intervalSet.endTimeToHMObject()
@@ -245,6 +250,8 @@ export function createScedualeCalendarEvents(workDayObjects){
         }) 
 
     })
+
+   // console.log(calendarEvents)
 
     return calendarEvents      
 }
@@ -356,7 +363,8 @@ export function splitUnionOverlappingIntervalSets(intervalSets){
         //increment the overlap counts from split_interval_start_index to split_interval_end_index
         for(let i = split_interval_start_index ; i <= split_interval_end_index; i++){
             const overlap_interval = overlapping_intervals[i]
-            const unioned_set_arr = _.union(splitee_set, overlap_interval.set) //instead of incrementing, union the sets
+            const unioned_set_arr = _.union(splitee_set, overlap_interval.set)//.sort() //instead of incrementing, union the sets
+
             overlap_interval.set = _.cloneDeep(unioned_set_arr)
         }
     
@@ -444,14 +452,93 @@ export function splitDiffOverlappingIntervalSets(availabilityIntervalSets, unava
             //const diff = _.difference(is.set,set) 
            // is.set = _.cloneDeep(diff)
            //find the elements in unavailability set not in the availability set
-           is.missing_elements = _.cloneDeep( _.difference(set,is.set) ) 
+
+          // is.missing_elements = []// _.cloneDeep( _.difference(set,is.set) ) 
+
+           is.missing_elements = _.cloneDeep(set)
+
+          //// console.log("overlap set:", is.set)
+          // console.log("set:", set)
+
+          // console.log("diff:", _.cloneDeep( _.difference(is.set,set) ) )
            //remove elements from availability set contained in availability set
            is.set = _.cloneDeep( _.difference(is.set,set) ) 
         })
       
     }
+
+    console.log("returning from splitDiffOverlappingIntervalSets: ", overlapping_intervals)
     
     return overlapping_intervals
+}
+
+/*
+check if 2 arrays contain the same contents, regardless of order
+constraints:
+- lhs,rhs elements should be strings
+- lhs, rhs array elements should not contain duplicates
+*/
+export function areSetsEqual(lhs, rhs){
+
+    lhs = lhs ?? []
+    rhs = rhs ?? []
+
+    if(lhs.length !== rhs.length) return false
+
+    for (const str of lhs)
+        if(!rhs.includes(str))
+            return false 
+      
+    return true
+}
+
+/*
+merge consecutive intervals where interval[i].end = interval[i+1].start and interval[i].set === interval[i+1].set
+constraints:
+- intervalSets are sorted 
+- intervalSets are non-overlapping
+
+this idealy is invoked on the output of splitUnionOverlappingIntervalSets()
+to clean up jointed intervals with the same sets 
+*/
+export function mergeEqualSetNeighbours(intervalSets){
+
+    intervalSets = intervalSets ?? []
+
+    if(intervalSets.length < 2) return intervalSets
+
+    const merged_intervals = []
+
+    let p1 = 0;
+
+    while(p1 < intervalSets.length){ 
+    
+        //read the left-hand/outer interval
+        const { start: outer_start, end: outer_end, set: outer_set } = intervalSets[p1] 
+        let current_end = outer_end //set the endpoint
+    
+        let p2 = p1+1 //set the pointer to the next interval
+        //check 1 or more consecutive intervals after the outer interval for merge candidates
+        while(p2 < intervalSets.length){
+
+            const { start: inner_start, end: inner_end, set: inner_set } = intervalSets[p2]
+    
+            //if this intervals startpoint is touching the previous intervals endpoint and the sets are the same
+            if( current_end === inner_start && areSetsEqual(inner_set,outer_set)){ 
+                current_end = inner_end  //update the endpoint...
+                p2++;                    //...and proceed to the next interval        
+            }else{   
+                break;                   //otherwise stop checking for intervals to merge            
+            } 
+        }
+        //create a new interval from outer interval that is merged with 0 or more inner intervals
+        merged_intervals.push(new IntervalSet(outer_start, current_end, outer_set)) 
+        
+        p1 = p2 //update the outer pointer so its pointing back to the last interval processed by inner loop
+    }
+
+    return merged_intervals
+
 }
 
 
