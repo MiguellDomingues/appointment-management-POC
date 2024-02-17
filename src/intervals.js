@@ -17,6 +17,12 @@ const DOTW = Object.freeze({
     Sunday: 6
 })
 
+const RBC_EVENT_TYPES = Object.freeze({
+    
+})
+
+
+
 
 /*
 export function isTimeStringValid(timeString){
@@ -182,9 +188,13 @@ export function createAvailabilityCalendarEvents(workDayObjects, setKey){
         //const sorted_si = sortIntervals(intervalSets)
         const split = splitUnionOverlappingIntervalSets(intervalSets)
 
-        console.log("split: ", split)
+        console.log(" raw split: ", split)
 
-        split.forEach(intervalSet=>{
+        const cleaned = mergeEqualSetNeighbours(split)
+
+        console.log("cleaned: ", cleaned)
+
+        cleaned.forEach(intervalSet=>{
 
             //const employeeInfo = intervalSet.set.map(getEmployeeById).map(({name})=>name).join(', ')
 
@@ -227,14 +237,13 @@ export function createScedualeCalendarEvents(workDayObjects,getEmployeeById){
 
         split.forEach(intervalSet=>{
 
-            
+            const employee_ids = intervalSet.set.join(',')//intervalSet.set.map(getEmployeeById).map(({name})=>name).join(', ')
 
-            const employeeInfo = intervalSet.set.map(getEmployeeById).map(({name})=>name).join(', ')
-
-            const missing = intervalSet.missing_elements.map(getEmployeeById).map(({name})=>name).join(', ')
+            const missing_employee_ids = intervalSet.missing_elements.join(',') 
 
            // console.log("employeeInfo",employeeInfo)
            // console.log("missing",missing)
+           const key = `${intervalSet.start}_${intervalSet.end}_${employee_ids}`
 
             const startHoursMinutes = intervalSet.startTimeToHMObject()   
             const endHoursMinutes = intervalSet.endTimeToHMObject()
@@ -243,9 +252,12 @@ export function createScedualeCalendarEvents(workDayObjects,getEmployeeById){
                 id: calendarEvents.length + 100, 
                 start: new Date("2023", 10, dayOfTheWeek, startHoursMinutes.h , startHoursMinutes.m , 0, 0), 
                 end: new Date("2023", 10, dayOfTheWeek, endHoursMinutes.h, endHoursMinutes.m, 0, 0), 
-                type: "shifts",
-                title: `avail: ${employeeInfo} non-avail: ${missing}`,
-                employee_ids: intervalSet.set.join(',')
+               // type: "shifts",
+                type: "sceduale",
+                key: key,
+               // title: `avail: ${employeeInfo} non-avail: ${missing}`,
+                employee_ids: employee_ids,
+                missing_employee_ids: missing_employee_ids
             })  
         }) 
 
@@ -386,9 +398,10 @@ export function splitDiffOverlappingIntervalSets(availabilityIntervalSets, unava
     if(availabilityIntervalSets.length == 0 ) return []
     if(unavailabilityIntervalSets.length == 0 ) return availabilityIntervalSets
     
-    //make sure both interval sets are disjointed with overlap sets merged
-    availabilityIntervalSets = splitUnionOverlappingIntervalSets(availabilityIntervalSets)
-    unavailabilityIntervalSets = splitUnionOverlappingIntervalSets(unavailabilityIntervalSets)
+    //make sure both interval sets are disjointed with overlap sets/equal sets merged 
+    //const cleaned = mergeEqualSetNeighbours(split)
+    availabilityIntervalSets = mergeEqualSetNeighbours(splitUnionOverlappingIntervalSets(availabilityIntervalSets))
+    unavailabilityIntervalSets = mergeEqualSetNeighbours(splitUnionOverlappingIntervalSets(unavailabilityIntervalSets))
 
     if(getTail(availabilityIntervalSets) <= getHead(unavailabilityIntervalSets) || //the entire unavailability set overruns the end of the availability set
        getTail(unavailabilityIntervalSets) <= getHead(availabilityIntervalSets)){  //the entire unavailability set underruns the start of the availability set
@@ -467,7 +480,7 @@ export function splitDiffOverlappingIntervalSets(availabilityIntervalSets, unava
       
     }
 
-    console.log("returning from splitDiffOverlappingIntervalSets: ", overlapping_intervals)
+    //console.log("returning from splitDiffOverlappingIntervalSets: ", overlapping_intervals)
     
     return overlapping_intervals
 }
