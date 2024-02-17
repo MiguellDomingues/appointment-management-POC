@@ -1,8 +1,10 @@
 import moment from "moment";
 import { momentLocalizer } from "react-big-calendar";
-import {useState, useMemo, useEffect } from 'react'
+import {useState, useMemo, useEffect, useCallback } from 'react'
 
-import { workdays, breaks, shifts, getShiftById,getBreakById,getEmployeeById  } from "./assets/data"
+import useBoundStore from "./store";
+
+//import { workdays, breaks, shifts, getShiftById,getBreakById,getEmployeeById  } from "./assets/data"
 
 import { 
     getTimeSlotStep,
@@ -23,12 +25,19 @@ const localizer = momentLocalizer(moment);
 
 function useAvailability(dataArr = [], checkBox){
 
+    const {
+        workDays,
+        getBreakById,
+        getShiftById,
+        getEmployeeById,
+    } = useBoundStore((state) => ({...state})) //shorthand to get all data/funcs of obj
+
     ////////////////////////states
-    const [locationId, setLocationId] = useState(null)
+    //const [locationId, setLocationId] = useState(null)
 
-    //const [workingPlan, setWorkingPlan] = useState([...workdays])
+    //const [workingPlanObjects, setworkingPlanObjects] = useState(()=>initObjects(workdays, getBreakById, getShiftById))
 
-    const [workingPlanObjects, setworkingPlanObjects] = useState(()=>initObjects(workdays))
+    const workingPlanObjects = useMemo( ()=>initObjects(workDays, getBreakById, getShiftById), [workDays])
 
     const [serviceDurations, setServiceDurations] = useState([])
     //const [breaks, setWorkingBreaks] = useState([])
@@ -59,7 +68,7 @@ function useAvailability(dataArr = [], checkBox){
 
     const breakIntervals =  useMemo( ()=>createAvailabilityCalendarEvents(workingPlanObjects, "breaks"), [workingPlanObjects])
 
-    const scedualeIntervals =  useMemo( ()=>createScedualeCalendarEvents(workingPlanObjects), [workingPlanObjects])
+    const scedualeIntervals =  useMemo( ()=>createScedualeCalendarEvents(workingPlanObjects,getEmployeeById), [workingPlanObjects])
 
     ////////////////////////on load and refetches, retreive the availability props from data///////////////
     useEffect( () => {}, []);
@@ -70,7 +79,42 @@ function useAvailability(dataArr = [], checkBox){
     //this fires for every event on each click
     const eventPropGetter = (event, start, end, isSelected) => {
 
-        //console.log("**********eventPropGetter event", event)
+        function getColorFromPercentage(percentage){
+            if(percentage > 75) return "green"
+            if(percentage > 50) return "orange"
+            if(percentage > 25) return "orangered"
+            if(percentage > 0) return "red"
+            return "black"
+        }
+
+
+
+        //console.log(isSelected)
+
+        if(event.type === 'sceduale'){
+            //console.log("**********eventPropGetter event", event)
+            //console.log("**********eventPropGetter event", event)
+            const {employee_ids,missing_employee_ids} = event
+
+            const avail_count = employee_ids.split(",").length
+            const unavail_count = missing_employee_ids ? missing_employee_ids.split(",").length : 0
+
+            console.log("employee_ids", avail_count)
+            console.log("missing_employee_ids", unavail_count)
+
+            const percentage = (avail_count/(avail_count+unavail_count)) * 100
+
+            console.log("percentage", percentage)
+
+            return {
+                className: //RBC_shift_interval_override  
+                    `
+                    ${(event.type && selectedEvent && event.key === selectedEvent.key) ? ` RBC_selected_interval_override` : ``}`,
+                style: {
+                    backgroundColor: getColorFromPercentage(Math.round(percentage))//"rgb(0, 255, 128)",
+                }
+            }
+        } 
 
         return { //override some CSS for the event containers
             className: `RBC_events_override 
@@ -79,7 +123,9 @@ function useAvailability(dataArr = [], checkBox){
                 ${(event.type && selectedEvent && event.key === selectedEvent.key) && ` RBC_selected_interval_override`}`
         }
 
-    }/*({ //override some CSS for the event containers
+    }
+    
+    /*({ //override some CSS for the event containers
         className: `RBC_events_override 
           ${event.type === 'shifts' ? ` RBC_shift_interval_override ` :
             event.type === 'breaks' ? ` RBC_break_interval_override ` : ` RBC_close_interval_override `}`
@@ -132,8 +178,8 @@ function useAvailability(dataArr = [], checkBox){
             localizer:          localizer,
             defaultDate:        new Date("2023", 10, 20, 0, 0, 0, 0),
             defaultView:        "work_week",//"day",
-            events:             getEventsByType(breakIntervals.concat(shiftIntervals), checkBox),//intervals,
-            step:               timeStep,
+            events:             checkBox !== "sceduale" ? getEventsByType(breakIntervals.concat(shiftIntervals), checkBox) : scedualeIntervals,//scedualeIntervals,//,
+            step:               timeStep,//5,
             toolbar:            false,
             views:              {work_week: MyWorkWeek},//["day", "agenda", "work_week", "month"],////["day", "agenda", "work_week", "month"],//{work_week: MyWorkWeek}, //views={["day", "agenda", "work_week", "month"]}
             eventPropGetter:    eventPropGetter,
@@ -150,13 +196,13 @@ function useAvailability(dataArr = [], checkBox){
            // loading: loadingUpdateWorkingPlan
         },
         breakListProps: {
-            breaks,
+            //breaks,
            // deleteWorkingBreak: (...props) => deleteBreak(...props, locationId), //inject the location_id into the callouts
            // addWorkingBreak:    (...props) => postBreak(...props, locationId),   //this avoids having to pass the id into the cmps
            // loading: loadingpostBreak || loadingdeleteBreak
         },
         serviceDurationListProps: {
-            serviceDurations, 
+           // serviceDurations, 
            // loading: loadingupdateServiceDuration,
           //  updateServiceDuration,
         }

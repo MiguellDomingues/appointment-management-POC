@@ -5,6 +5,8 @@ import { Calendar,  } from "react-big-calendar";
 
 import { useState } from 'react'
 
+import useBoundStore from "./store";
+
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
 import './App.css'
@@ -84,25 +86,23 @@ function ConfigurationPage(){
 
 function AvailabilityPage(){
 
+  const {
+    getEmployeeById,
+} = useBoundStore((state) => ({...state})) //shorthand to get all data/funcs of obj
+
   const [checkBox, setCheckBox] = useState("breaks_shifts")
 
   const {calendarProps,selectedEvent} = useAvailability([], checkBox)
 
   console.log("///selected event client: ", selectedEvent)
 
-  /*
-  console.log("///employees: ", 
-    selectedEvent?.employee_ids.split(",")
-      .map(id=>parseInt(id))
-        .map(getEmployeeById)
-          .map(({name})=>name).join(', ')) */
-
   function handleChange(e) {
     setCheckBox(e.target.value);
  }
 
  function getEmployeeNames(employee_ids){
-  return employee_ids.split(",").map(id=>parseInt(id)).map(getEmployeeById).map(({name})=>name).join(', ')
+  if(!employee_ids) return ""
+  return employee_ids.split(",").map(getEmployeeById).map(({name})=>name).join(', ')
  }
 
   return( 
@@ -111,6 +111,7 @@ function AvailabilityPage(){
     <div className="left_panel">
 
       <Calendar {...calendarProps}/>
+
       <div className="checkboxes">
         <div>
           <span>show breaks</span>
@@ -125,6 +126,11 @@ function AvailabilityPage(){
         <div>
           <span>show breaks and shifts</span>
           <input value="breaks_shifts" type="checkbox" onChange = {handleChange} checked={checkBox==="breaks_shifts"}/> 
+        </div>
+
+        <div>
+          <span>show sceduale</span>
+          <input value="sceduale" type="checkbox" onChange = {handleChange} checked={checkBox==="sceduale"}/> 
         </div>
       </div>
 
@@ -141,8 +147,12 @@ function AvailabilityPage(){
           type: {selectedEvent.type}<br/>
           start: {selectedEvent.start.toString().split(" ")[4]}<br/>
           end: {selectedEvent.end.toString().split(" ")[4]}<br/>
-          employees: {getEmployeeNames(selectedEvent.employee_ids)}<br/>
-          days: {selectedEvent.week_days.join(',')}
+          avail employees: {getEmployeeNames(selectedEvent.employee_ids)}<br/>
+          days: {selectedEvent.week_days.join(',')}<br/>
+          {selectedEvent.type === "sceduale" ? 
+            <>
+            non-avail employees: {getEmployeeNames(selectedEvent.missing_employee_ids)}<br/>
+            </> : <></>}
         
         </> : <></>}
       </div>
