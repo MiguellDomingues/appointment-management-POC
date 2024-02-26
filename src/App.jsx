@@ -1,9 +1,22 @@
 
 import useAvailability from './useAvailability';
 import PropTypes from 'prop-types';
-import { Calendar,  } from "react-big-calendar";
 
-import { useState } from 'react'
+import { Calendar,  Views, momentLocalizer } from "react-big-calendar";
+import moment from "moment";
+//import { momentLocalizer } from "react-big-calendar";
+
+import TestingRBC from './calendarMocks/TestingRBC'
+
+import TestingRBCEmpView from './calendarMocks/TestingRBCEmpView'
+
+import AppointmentCalendar from './calendarMocks/AppointmentCalendar'
+
+
+moment.locale("en-CA");
+const localizer = momentLocalizer(moment);
+
+import { useState, useCallback } from 'react'
 
 import useBoundStore from "./store";
 
@@ -15,24 +28,50 @@ import TestingPage from "./TestingPage"
 
 import {employees, shifts, breaks, workdays, services,getEmployeeById } from "./assets/data"
 
+function getPage(body){
+  switch(body){
+    case "availability":
+      return <AvailabilityPage/> 
+    //case "config": 
+     // return <ConfigurationPage/>
+    case "testingDT":
+      return <TestingPage/>
+      /*
+    case "testingRBC":
+      return <TestingRBC/>
+    case "testingEmpView":
+      return <TestingRBCEmpView/>
+      */
+    case "appointmentcalendar":
+        return <AppointmentCalendar/>
+    default:
+      return <></>
+  }
+}
 
-
-
+//<span onClick={e=>setBody("config")}>Configuration</span>
+//  <span onClick={e=>setBody("testingRBC")}>TestingRBC</span>
+//<span onClick={e=>setBody("testingEmpView")}>TestingRBCEmpView</span>
+//
 function App() {
 
   const [body, setBody] = useState("availability")
 
   return (<>
     <div className="header">
-      <span onClick={e=>setBody("config")}>Configuration</span>
+      
       <span onClick={e=>setBody("availability")}>Availability</span>
-      <span onClick={e=>setBody("testing")}>Testing</span>
+      <span onClick={e=>setBody("testingDT")}>TestingDT</span>
+      <span onClick={e=>setBody("appointmentcalendar")}>Appointment Calendar</span>
+
     </div>
     <div className="body">
-      {body === "availability" ? <AvailabilityPage/> : (body === "config" ? <ConfigurationPage/> : <TestingPage/>)} 
+      {getPage(body)} 
     </div>
   </> )
 }
+
+//body === "availability" ? <AvailabilityPage/> : (body === "config" ? <ConfigurationPage/> : <TestingPage/>)
 
 /*
  return (<>
@@ -105,12 +144,18 @@ function AvailabilityPage(){
   return employee_ids.split(",").map(getEmployeeById).map(({name})=>name).join(', ')
  }
 
+   //style={{ height: 800 } this is what makes the inside part of the calendar scrollable
+  //without scrolling the calendars container
+
   return( 
   <div className="availability_page_layout">
 
     <div className="left_panel">
 
-      <Calendar {...calendarProps}/>
+ 
+      <div style={{ height: 800 }}>
+        <Calendar {...calendarProps}/>
+      </div>
 
       <div className="checkboxes">
         <div>
@@ -164,10 +209,5 @@ function AvailabilityPage(){
   </div>)
 }
 
-
-TableLayOut.propTypes = {
-  data: PropTypes.array.isRequired,
-  title: PropTypes.string.isRequired
-}
 
 
