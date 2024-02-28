@@ -190,7 +190,7 @@ export function createAvailabilityCalendarEvents(workDayObjects, setKey){
 
         console.log(" raw split: ", split)
 
-        const cleaned = mergeEqualSetNeighbours(split)
+        const cleaned = mergeConsecutiveIntervalSets(split,areSetsEqual)
 
         console.log("cleaned: ", cleaned)
 
@@ -211,6 +211,7 @@ export function createAvailabilityCalendarEvents(workDayObjects, setKey){
                 end: new Date("2023", 10, dayOfTheWeek, endHoursMinutes.h, endHoursMinutes.m, 0, 0), 
                 type: setKey,
                 key: key,
+                data: _.cloneDeep(intervalSet.set).sort(),
                // title: setKey === 'breaks' ? `Break for: ${employeeInfo}` : `Shift for: ${employeeInfo}`,
                 employee_ids: employee_ids//_.cloneDeep(intervalSet.set).sort().join(',')
             })  
@@ -253,6 +254,7 @@ export function createScedualeCalendarEvents(workDayObjects,getEmployeeById){
                 start: new Date("2023", 10, dayOfTheWeek, startHoursMinutes.h , startHoursMinutes.m , 0, 0), 
                 end: new Date("2023", 10, dayOfTheWeek, endHoursMinutes.h, endHoursMinutes.m, 0, 0), 
                // type: "shifts",
+                //title: "", <- THIS IS THE TITLE FOR RESOURCE -> "room a"/room b
                 type: "sceduale",
                 key: key,
                // title: `avail: ${employeeInfo} non-avail: ${missing}`,
@@ -400,8 +402,8 @@ export function splitDiffOverlappingIntervalSets(availabilityIntervalSets, unava
     
     //make sure both interval sets are disjointed with overlap sets/equal sets merged 
     //const cleaned = mergeEqualSetNeighbours(split)
-    availabilityIntervalSets = mergeEqualSetNeighbours(splitUnionOverlappingIntervalSets(availabilityIntervalSets))
-    unavailabilityIntervalSets = mergeEqualSetNeighbours(splitUnionOverlappingIntervalSets(unavailabilityIntervalSets))
+    availabilityIntervalSets = mergeConsecutiveIntervalSets(splitUnionOverlappingIntervalSets(availabilityIntervalSets,areSetsEqual))
+    unavailabilityIntervalSets = mergeConsecutiveIntervalSets(splitUnionOverlappingIntervalSets(unavailabilityIntervalSets,areSetsEqual))
 
     if(getTail(availabilityIntervalSets) <= getHead(unavailabilityIntervalSets) || //the entire unavailability set overruns the end of the availability set
        getTail(unavailabilityIntervalSets) <= getHead(availabilityIntervalSets)){  //the entire unavailability set underruns the start of the availability set
@@ -506,19 +508,26 @@ export function areSetsEqual(lhs, rhs){
 }
 
 /*
-merge consecutive intervals where interval[i].end = interval[i+1].start and interval[i].set === interval[i+1].set
+merge consecutive intervals where :
+    interval[i].end = interval[i+1].start 
+    and
+    predicateFn(leftIntervalSet, righIntervalSet) = true
+
 constraints:
 - intervalSets are sorted 
 - intervalSets are non-overlapping
 
+
+
 this idealy is invoked on the output of splitUnionOverlappingIntervalSets()
 to clean up jointed intervals with the same sets 
 */
-export function mergeEqualSetNeighbours(intervalSets){
+export function mergeConsecutiveIntervalSets(intervalSets, predicateFn){
 
     intervalSets = intervalSets ?? []
+    predicateFn = predicateFn ?? null//( (lhs,rhs)=>false )
 
-    if(intervalSets.length < 2) return intervalSets
+    if(!predicateFn || intervalSets.length < 2) return intervalSets
 
     const merged_intervals = []
 
@@ -537,7 +546,7 @@ export function mergeEqualSetNeighbours(intervalSets){
             const { start: inner_start, end: inner_end, set: inner_set } = intervalSets[p2]
     
             //if this intervals startpoint is touching the previous intervals endpoint and the sets are the same
-            if( current_end === inner_start && areSetsEqual(inner_set,outer_set)){ 
+            if( current_end === inner_start && predicateFn(inner_set,outer_set) ){//areSetsEqual(inner_set,outer_set)){ 
                 current_end = inner_end  //update the endpoint...
                 p2++;                    //...and proceed to the next interval        
             }else{   
@@ -551,12 +560,127 @@ export function mergeEqualSetNeighbours(intervalSets){
     }
 
     return merged_intervals
-
 }
 
 
 /*
+find the available appointment slots for each time slot
 
+  open_intervals:    a list of sorted, non-overlapping intervalSets 
+  service_duration:  length of appointment service in minutes
+  time_slots:        a list of jointed,sorted intervals
+
+constaints: 
+  time_slots.length > 0
+  time_slots[0].start <= open_intervals[0].start
+  time_slots[time_slots.length-1].end >= open_intervals[open_intervals.length-1].end
+
+return: 
+  an array of time_slots length, each containing an array with 0-n integers, each index representing a time where an apt may be booked
+*/
+/*this should be called paritionIntervalIntoBuckets*/
+export function getTimeSlotAvailabilities(open_intervals, service_duration, time_slot_intervals){
+
+    open_intervals = open_intervals ?? [];
+    time_slot_intervals = time_slot_intervals ?? [];
+    service_duration = service_duration ?? 0
+  
+    assert.equal(service_duration > 0, true, "service_duration must be greater then 0");
+    assert.equal(service_duration <= time_slot_intervals[0].duration, true, "service_duration can not exceed the duration of a time slot");
+   
+    //remove open intervals that are shoter than the service_duration
+    open_intervals = open_intervals.filter((interval)=> interval.duration >= service_duration)
+    // remove open intervals that have no resources available to fill capacity
+    //i could also add a filter which checks for specific employees (book appointment with a specific person)
+    open_intervals = open_intervals.filter((interval)=> interval.set.length >= 1) 
+
+    if(open_intervals.length === 0){ //if there are no open intervals, just return an array of empty arrays for each time slot 
+      return new Array(time_slot_intervals.length).fill([])
+    }
+
+   // console.log("open_intervalsffsdfdsfs:", open_intervals)
+  
+    const time_slot_availabilities = []
+
+    //generate an array of integers, starting from interval_start and incrementing by (service_duration) all the way to interval_end 
+    //represents the times an appointment may be booked across an open interval starting from the earliest time
+    const getAvailabilitySlots = (interval_start, interval_end) => {
+
+      const slots = []
+  
+      while(interval_start + service_duration <= interval_end)
+      {
+        slots.push( interval_start )
+        interval_start+=service_duration 
+      }
+     
+      return slots
+    }
+  
+    let open_intervals_index = 0;
+    let overflow = 0;
+
+    //console.log("open_intervals:", open_intervals)
+  
+    time_slot_intervals.forEach(time_slot=>{
+  
+      const time_slot_end = time_slot.end;
+      let bucket_total = []
+  
+      if(overflow > 0){ //any intervals that overran the last buckets end time will have the difference place in this bucket
+        const overflow_for_this_bucket = Math.min( overflow, time_slot.duration) //the most overflow we can take would be the bucket capacity 
+        bucket_total = getAvailabilitySlots (  time_slot.start, time_slot.start + overflow_for_this_bucket ) 
+        overflow = overflow - overflow_for_this_bucket //and decrement the overflow
+      }
+  
+      //if there is still overflow after the above op, it means an open interval extends past this bucket boundary and the bucket is filled. go to the next bucket
+      //when the overflow is empty, walk the intervals to fill the current bucket until the interval falls outside the bucket or there are no intervals
+      while(overflow === 0 && open_intervals_index < open_intervals.length){  
+  
+        const open_interval = open_intervals[open_intervals_index]
+        const open_interval_start = open_interval.start
+        const open_interval_end = open_interval.end
+
+       // console.log("**************")
+       // console.log("open_interval:", open_interval)
+       // console.log("open_interval_start:", open_interval_start)
+       // console.log("open_interval_end:", open_interval_end)
+  
+        //when the interval is 0% inside this bucket, including edges, then we are done processing this bucket
+        if(open_interval_start >= time_slot_end){//if the interval needs to be placed into the next bucket
+          break;
+        }
+  
+        //interval begins in this bucket and ends in some other bucket; 
+        if(open_interval_end > time_slot_end){ 
+          const non_overflow =  time_slot_end - open_interval_start // find the section of the interval that lies within this bucket
+          overflow = open_interval_end - time_slot_end // find the section of the interval that lies outside this bucket
+          //if the part of the interval overflowing into next bucket is too small to fit an apt..
+          // AND the part of the interval within this bucket is too small to fit an apt..
+          if(overflow < service_duration && non_overflow < service_duration){ 
+            //still allow the user to book into THIS bucket (because we have enough time on this interval)
+            //otherwise user would be denied booking, even though this interval has time
+            bucket_total = bucket_total.concat( getAvailabilitySlots (open_interval_start, open_interval_start + service_duration ) )
+          }else{  //if the overflow exeeds service duration (book within next bucket)      
+            //or the non-overflow is large enough to fit at least one apt into this bucket
+            bucket_total = bucket_total.concat( getAvailabilitySlots ( open_interval_start, non_overflow + open_interval_start ) )//should always be >= 1
+          } 
+        }else{ //interval is 100% inside this bucket
+          //otherwise put the open interval into this bucket and check the next one
+          bucket_total = bucket_total.concat( getAvailabilitySlots (open_interval_start, open_interval_end ) )
+        }
+  
+        open_intervals_index++
+      }
+  
+      time_slot_availabilities.push(bucket_total)
+    })
+  
+    return time_slot_availabilities
+}
+
+
+/*
 //input: arr of employee_sceduale objects {intervaL: interval, employees: [stringId0, sid1, ...]}
 export function splitUnionOverlappingIntervalSets(intervals){
 
