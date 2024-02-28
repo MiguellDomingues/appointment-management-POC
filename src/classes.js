@@ -19,6 +19,8 @@ export class WorkDay{
 
     constructor(dotw, open, close, shifts, breaks){
 
+        //appointments
+
         this.dotw = this.#parseDOTW(dotw)
         this.shifts = shifts || []
         this.breaks = breaks || []
@@ -50,6 +52,38 @@ export class WorkDay{
     get close(){
         return this.isOpen() ? this.interval.end : ""
     }
+
+    // get shiftIntervalSets
+    // get breakIntervalSets
+
+    /*
+    createDaysCalendarEvents( workDayCB, intervalSetCB){
+
+        const cloned = _.cloneDeep(this)
+
+        const callenderEvent = {
+            dayOfTheWeek: 20+dotw
+            id: (sttaic),
+
+        }
+
+
+        {transformed, ...rest} = workDayCB(cloned) 
+        return transformed.map((is)=>{
+
+            const startHoursMinutes = is.startTimeToHMObject()   
+            const endHoursMinutes = is.endTimeToHMObject()
+
+            start: new Date("2023", 10, dayOfTheWeek, startHoursMinutes.h , startHoursMinutes.m , 0, 0), 
+            end: new Date("2023", 10, dayOfTheWeek, endHoursMinutes.h, endHoursMinutes.m, 0, 0), 
+            
+
+            return intervalSetCB(is, cloned, ...rest)
+        })
+
+
+    }
+    */
 
     toString(){
         return `dotw: ${this.dotw}, open: ${this.open}, close: ${this.close}, shifts: [${this.shifts}], breaks: [${this.breaks}]`
@@ -140,11 +174,15 @@ export class IntervalSet{
     }
 
     get start(){
-        return this.interval.start
+        return this.interval.start;
     }
 
     get end(){
-        return this.interval.end
+        return this.interval.end;
+    }
+
+    get duration(){
+        return this.interval.duration;
     }
 
     startTimeToHMObject(){
@@ -159,6 +197,32 @@ export class IntervalSet{
         return `[start: ${this.start}, end: ${this.end}, set: [${this.set}] ]`
     }
 }
+
+
+export class CalendarEvent{
+//add shift, break events here
+//KEEP A COUNTING STATIC VAR TO INCREMENT IDS
+/*
+ id: calendarEvents.length + 100, 
+                start: new Date("2023", 10, dayOfTheWeek, startHoursMinutes.h , startHoursMinutes.m , 0, 0), 
+                end: new Date("2023", 10, dayOfTheWeek, endHoursMinutes.h, endHoursMinutes.m, 0, 0), 
+               // type: "shifts",
+                //title: "", <- THIS IS THE TITLE FOR RESOURCE -> "room a"/room b
+                type: "sceduale",
+                key: key,
+               // title: `avail: ${employeeInfo} non-avail: ${missing}`,
+                employee_ids: employee_ids,
+                missing_employee_ids: missing_employee_ids
+*/
+
+    createCalendarEvent(workDay, processWorkDay, processIntervalSet){      
+        workDay.map(processWorkDay)
+    }
+}
+
+/*
+
+*/
 
 
 
