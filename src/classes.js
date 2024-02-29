@@ -167,10 +167,11 @@ export class IntervalSet{
 
     //missing_elements = []
 
-    constructor(start, end, set, missing_elements){
+    constructor(start, end, set, missing_elements, overlap_count){
         this.interval = new Interval(start, end)
         this.set = _.cloneDeep(set) || []
         this.missing_elements = _.cloneDeep(missing_elements) || []
+        this.overlap_count = overlap_count || 0
     }
 
     get start(){
