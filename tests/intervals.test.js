@@ -6,34 +6,14 @@ import moment from "moment";
 //import {useBoundStore} from '../src/store.js';
 
 import { 
-
-    //sortByWeekday,
-   // Interval,
-   // toIntervals,
-   // sortIntervals,
-    //splitUnionOverlappingIntervalSets,
     areSetsNonEmpty,
-
     splitUnionOverlappingIntervalSets,
-    //getTimeSlotAvailabilities,
-
+    getIntervalsWithAppointmentCapacity,
     getTimeSlotAvailabilities,
-    //splitDiffOverlappingIntervalSets_test,
-
     mergeConsecutiveIntervalSets,
     splitDiffOverlappingIntervalSets,
-
-    //splitDiffOverlappingIntervalSets_test3,
     areSetsEqual,
-    //splitDiffOverlapIntervals_test_2,
-
-
-   // createCloseIntervals,
-   // fillInEmptyDays,
-
-    initObjects,
-    createAvailabilityCalendarEvents,
-
+    
  } from '../src/intervals.js'
 
  import { 
@@ -43,105 +23,8 @@ import {
 
  } from '../src/classes.js'
 
-//import {employees, shifts, breaks, workdays, services, getBreakById, getShiftById} from "../src/assets/data.js"
 
 
-describe("testing createCloseIntervals todo()", {skip: true}, () => {
-
-    let workingPlan;
-
-    /*
-    it("throws assertion error when max time < end time of last interval", () => {
-        closed_intervals = [new Interval(55, 60)]
-        min_max_interval = new Interval(54, 59)
-
-        try{intervals = getOpenIntervals(closed_intervals, min_max_interval)}catch(err){}
-        assert.equal(intervals === null, true, "end of last interval cant be > max time")      
-    });
-    */
-
-    /*
-    it("testing openCloseTimes of  splitIntoOpenCloseTimesShiftsBreaks", () => {
-
-        const { openCloseTimes, shiftsBreaks } = splitIntoOpenCloseTimesShiftsBreaks(workdays)
-
-        const {startMin, endMax} =  getMinMaxWorkingPlanTimes(openCloseTimes)
-
-        assert.deepStrictEqual(startMin , { h: 8, m: 0 }, "");
-        assert.deepStrictEqual(endMax , { h: 17, m: 0 }, "");
-
-        const timeStep = getTimeSlotStep(startMin,endMax)
-
-        assert.deepStrictEqual(timeStep , 30, "");
-
-        const closeIntervals = createCloseIntervals(openCloseTimes,startMin,endMax)
-
-        //console.log(closeIntervals)
-
-        
-        assert.deepStrictEqual(
-            closeIntervals , 
-                [
-                    {
-                      id: 0,
-                      start: new Date("2023-11-24T16:00:00.000Z"),
-                      end: new Date("2023-11-24T17:00:00.000Z")   
-                    },
-                    {
-                      id: 1,
-                      start: new Date("2023-11-24T22:00:00.000Z"),
-                      end: new Date("2023-11-25T01:00:00.000Z")   
-                    },
-                    {
-                      id: 2,
-                      start: new Date("2023-11-25T16:00:00.000Z"),
-                      end: new Date("2023-11-26T01:00:00.000Z")   
-                    },
-                    {
-                      id: 3,
-                      start: new Date("2023-11-26T16:00:00.000Z"),
-                      end: new Date("2023-11-27T01:00:00.000Z")
-                    }
-        ],"");
-            
-    });*/
-
-    it("testing shiftsBreaks of  splitIntoOpenCloseTimesShiftsBreaks", () => {
-
-
-       // console.log(workdays)
-
-        const wdo = initObjects(workdays)
-
-        //console.log(`${wdo}`)console.log(`${wdo}`)
-
-       // wdo.forEach(a=>console.log(`${a["shifts"]}`))
-
-       wdo.forEach(a=>console.log(`${a}`))
-
-       const a = createAvailabilityCalendarEvents(wdo, "shifts")
-
-       console.log(a)
-
-        //const { openCloseTimes, shiftsBreaks } = splitIntoOpenCloseTimesShiftsBreaks(workdays)
-
-        //const {shifts, breaks} = splitInto_Shifts_Breaks(shiftsBreaks)
-
-        //console.log(shifts,breaks)
-
-       // shifts.forEach(s=>console.log(s))
-       // breaks.forEach(b=>console.log(b))
-
-        //console.log(createCalendarEvents(shifts))
-    });
-
-
-    beforeEach(() => {
-        workingPlan = []
-    });
-});
-
-//broken right now with the missing_elements = [] prop
 describe("testing splitDiffOverlapIntervals", { skip: false }, () => {
 
     let availability_sets, unavailability_sets;
@@ -388,8 +271,8 @@ describe("testing splitDiffOverlapIntervals", { skip: false }, () => {
             [ 
                 new IntervalSet(5,7, [1], [0]),
                 new IntervalSet(7,9, [0,1]),
-                new IntervalSet(13,17, [0,1]),
-                new IntervalSet(17,25, [0, 1]),
+                new IntervalSet(13,25, [0,1]),
+                //new IntervalSet(17,25, [0, 1]),
             ],"");  
     
         });
@@ -406,8 +289,8 @@ describe("testing splitDiffOverlapIntervals", { skip: false }, () => {
                 new IntervalSet(7,8, [0,1]),
                 new IntervalSet(8,9, [1], [0]),
                 new IntervalSet(13,15, [1], [0]),
-                new IntervalSet(15,17, [0,1]),
-                new IntervalSet(17,25, [0, 1]),
+                new IntervalSet(15,25, [0,1]),
+               // new IntervalSet(17,25, [0,1]),
             ],"");  
         });
 
@@ -422,8 +305,8 @@ describe("testing splitDiffOverlapIntervals", { skip: false }, () => {
                 new IntervalSet(8,9, [1], [0]),
                 new IntervalSet(13,15, [1], [0]),
                 new IntervalSet(15,16, [0,1]),
-                new IntervalSet(16,17, [0], [1]),
-                new IntervalSet(17,22, [0], [1]),
+                new IntervalSet(16,22, [0], [1]),
+               // new IntervalSet(17,22, [0], [1]),
                 new IntervalSet(22,25, [0,1]),
             ],"");  
         });
@@ -437,8 +320,8 @@ describe("testing splitDiffOverlapIntervals", { skip: false }, () => {
             [ 
                 new IntervalSet(5,9, [0, 1]),
                 new IntervalSet(13,15, [0,1]),
-                new IntervalSet(15,17, [1], [0]),
-                new IntervalSet(17,18, [1], [0]),
+                new IntervalSet(15,18, [1], [0]),
+               // new IntervalSet(17,18, [1], [0]),
                 new IntervalSet(18,22, [0,1]),
                 new IntervalSet(22,25, [0], [1]),
             ],"");  
@@ -514,8 +397,8 @@ describe("testing splitDiffOverlapIntervals", { skip: false }, () => {
     
             availability_sets = [
                 new IntervalSet(5,9, [0, 1]),
-                new IntervalSet(13,17, [0,1]),
-                new IntervalSet(17,25, [0,1]),
+                new IntervalSet(13,25, [0,1]),
+               // new IntervalSet(17,25, [0,1]),
             ]
     
             unavailability_sets = []
@@ -729,16 +612,17 @@ describe("testing splitDiffOverlapIntervals", { skip: false }, () => {
         it("correctly merges and sums the overlap_count, diffs the sets, for multiple overlapping spans ", () => { 
     
             unavailability_sets = [ 
-                new IntervalSet(6,9, [1],[],1),
+                //new IntervalSet(6,9, [1],[],1),
+                new IntervalSet(6,9, [1]),
                 new IntervalSet(7,11, [],[],1)
              ]
 
-            assert.deepStrictEqual( 
+            assert.deepStrictEqual(
             splitDiffOverlappingIntervalSets(availability_sets,unavailability_sets), 
             [ 
                 new IntervalSet(4,6, [0,1]),
-                new IntervalSet(6,7, [0], [1], 1),
-                new IntervalSet(7,9, [0], [1], 2),
+                new IntervalSet(6,7, [0], [1], 0),
+                new IntervalSet(7,9, [0], [1], 1),
                 new IntervalSet(9,11, [0,1], [], 1),
                 new IntervalSet(11,12, [0,1])
             ],"");  
@@ -755,7 +639,7 @@ describe("testing splitDiffOverlapIntervals", { skip: false }, () => {
 
              ]
 
-             console.log("$$$", splitDiffOverlappingIntervalSets(availability_sets,unavailability_sets))
+            // console.log("$$$", splitDiffOverlappingIntervalSets(availability_sets,unavailability_sets))
 
             assert.deepStrictEqual( 
             splitDiffOverlappingIntervalSets(availability_sets,unavailability_sets), 
@@ -785,21 +669,51 @@ describe("testing splitDiffOverlapIntervals", { skip: false }, () => {
 
 });
 
-describe("testing areSetsEqual", () => {
+describe("testing areSetsEqual",  { skip: false }, () => {
 
     it("returns correctly for every combination of inputs", () => { 
-        assert.equal(areSetsEqual(), true)
-        assert.equal(areSetsEqual(["A","B","C"], ["B","A","C"]), true)
-        assert.equal(areSetsEqual(["A","B","D"], ["D","A","B"]), true)
-        assert.equal(areSetsEqual([], []), true)
-        assert.equal(areSetsEqual(["A"], ["A"]), true)
-        assert.equal(areSetsEqual(["A"], ["B", "C"]), false)
-        assert.equal(areSetsEqual(["A","B","D"], ["B","A","E"]), false)
+        //assert.equal(areSetsEqual(), true)
+
+        assert.equal(
+            areSetsEqual(
+                new IntervalSet(0, 2, ["A","B","C"]),
+                new IntervalSet(2, 4, ["B","A","C"])
+            ),true)
+
+        assert.equal(
+            areSetsEqual(
+                new IntervalSet(0, 2, ["D","B","C"]),
+                new IntervalSet(2, 4, ["B","A","C"])
+            ),false)
+
+        assert.equal(
+            areSetsEqual(
+                new IntervalSet(0, 2, ["A"], ["B"]),
+                new IntervalSet(2, 4, ["A"], ["B"])
+            ),true)
+
+        assert.equal(
+            areSetsEqual(
+                new IntervalSet(0, 2, ["A"], ["B"]),
+                new IntervalSet(2, 4, ["A"], ["C"])
+            ),false)
+
+        assert.equal(
+            areSetsEqual(
+                new IntervalSet(0, 2, ["A"], ["B"], 1),
+                new IntervalSet(2, 4, ["A"], ["B"], 1)
+            ),true)
+
+        assert.equal(
+            areSetsEqual(
+                new IntervalSet(0, 2, ["A"], ["B"], 1),
+                new IntervalSet(2, 4, ["A"], ["B"], 0)
+            ),false)
     });
 
 });
 
-describe("testing mergeEqualSetNeighbours", () => {
+describe("testing mergeConsecutiveIntervalSets", () => {
 
     let interval_sets
 
@@ -998,60 +912,11 @@ describe("testing mergeEqualSetNeighbours", () => {
 
 });
 
-//initObjects(workDays, getBreakById, getShiftById), [workDays])
-
 
 describe("testing stuff", { skip: true }, () => {
 
     let availability_sets, unavailability_sets;
 
-    /*
-    it("", () => { 
-
-       // unavailability_sets = [ new IntervalSet(6,15, [0]), new IntervalSet(17,23, [0]),]
-
-        //case 1: each element in antiset is contained in set
-        let set = ["0","1","2"]
-        let antiset = ["0","1"]
-
-        console.log("S-AS", _.difference(set, antiset))
-        console.log("AS-S", _.difference(antiset, set))
-
-        //case 2: antiset contains elements not in set
-        set = [1,2,3]
-        antiset = [2,3,4,5]
-
-        console.log("S-AS", _.difference(set, antiset))
-        console.log("AS-S", _.difference(antiset, set))
-
-        //case 3: antiset is empty
-        set = [1,2,3]
-        antiset = []
-
-        console.log("S-AS", _.difference(set, antiset))
-        console.log("AS-S", _.difference(antiset, set))
-
-        //case 3: set is empty
-        set = []
-        antiset = [2,3,4,5]
-
-        console.log("S-AS", _.difference(set, antiset))
-        console.log("AS-S", _.difference(antiset, set))
-
-
-
-        
-
-
-        //splitDiffOverlappingIntervalSets_test3(availability_sets, unavailability_sets)
-
-
-       // assert.deepStrictEqual( 
-       // splitDiffOverlappingIntervalSets(availability_sets,unavailability_sets), 
-       // availability_sets,"");  
-
-    });
-*/
     it("", () => { 
 
        function isEventOverlappingUnsorted2(tStart, tEnd, events){
@@ -1062,13 +927,6 @@ describe("testing stuff", { skip: true }, () => {
             return false
         }
        
-
-
-
-
-    
-        
-
         function isEventOverlapping(tStart, tEnd, events){
             //events must be sorted
             if(events.length === 0) return false
@@ -1241,6 +1099,150 @@ describe("testing stuff", { skip: true }, () => {
 
 });
 
+describe("Testing getIntervalsWithAppointmentCapacity", { skip: false }, () => {
+
+    let shifts, breaks;
+
+    describe(`
+        availability: 0--------------------(a,b,c)------------------------------60             
+        `, { skip: false }, () => {
+
+            let shifts, breaks
+    
+            it(`
+            returns: 0---------------------------------------------------------60 
+            when
+            availability: 0--------------------(a,b,c)------------------------------60
+            appointments:  
+                  breaks:           15-(a,b)-20              45---(c)---50  
+                `, { skip: false },() => { 
+    
+                const appointments = []
+                assert.deepStrictEqual(
+                    getIntervalsWithAppointmentCapacity(shifts, breaks.concat(appointments)), 
+                    [new Interval(0,60)]
+                ,"");  
+
+            }); 
+
+            it(`
+            returns:      0---------------------------------------------------------60
+            when
+            availability: 0--------------------(a,b,c)------------------------------60
+            appointments:  5--(+1)--15           25--(c)--40
+                  breaks:           15-(a,b)-20              45---(c)---50  
+            `, { skip: false },() => { 
+    
+                const appointments = [
+                    new IntervalSet(5,15,[], [], 1),
+                    new IntervalSet(25,40,["c"], [], 0),
+                ]
+
+                assert.deepStrictEqual(
+                    getIntervalsWithAppointmentCapacity(shifts, breaks.concat(appointments)), 
+                    [new Interval(0,60)]
+                ,"");  
+
+            }); 
+
+            it(`
+            returns:      0-------15       20----------------47         48----------60
+            when
+            availability: 0--------------------(a,b,c)------------------------------60
+            appointments:      10---(+1)---20        40--(a)-47--(a,b)--48--(b)--50
+                  breaks:         15-(a,b)-20            45-------(c)--------50 
+                 
+            `, { skip: false },() => { 
+    
+                const appointments = [
+                    new IntervalSet(10,20,[], [], 1),
+                    new IntervalSet(40,48,["a"], [], 0),
+                    new IntervalSet(47,50,["b"], [], 0),
+                ]
+
+                assert.deepStrictEqual(
+                    getIntervalsWithAppointmentCapacity(shifts, breaks.concat(appointments)), 
+                    [
+                        new Interval(0,15),
+                        new Interval(20,47),
+                        new Interval(48,60)
+                    ]
+                ,"");  
+
+            }); 
+
+            it(`
+            returns:      0-------15       20------------------45   47--------------60
+            when
+            availability: 0--------------------(a,b,c)------------------------------60
+            appointments:      10---(+1)---20       35--+1--43--+2--47----+1----55
+                  breaks:         15-(a,b)-20                  45----(c)----50 
+            `, { skip: false },() => { 
+    
+                const appointments = [
+                    new IntervalSet(10,20,[], [], 1),
+                    new IntervalSet(35,47,[], [], 1),
+                    new IntervalSet(43,55,[], [], 1),
+                ]
+
+                assert.deepStrictEqual(
+                    getIntervalsWithAppointmentCapacity(shifts, breaks.concat(appointments)), 
+                    [
+                        new Interval(0,15),
+                        new Interval(20,45),
+                        new Interval(47,60)
+                    ]
+                ,"");  
+
+            }); 
+
+            it(`
+            returns:      0------15       20------------------------------45           50---------60
+            when
+            availability: 0--------------------(a,b,c)--------------------------------------------60
+            appointments:    10----(c)----20--(c+1)--25--+2---30--+1--40  45---(a+1)---50--(a+1)--60
+                  breaks:        15-(a,b)-20                              45----(c)----50 
+            `, { skip: false },() => { 
+    
+                const appointments = [
+                    new IntervalSet(10,25,["c"]),              
+                    new IntervalSet(20,30,[], [], 1),
+                    new IntervalSet(25,40,[], [], 1),
+                    new IntervalSet(45,50,[], [], 1),
+                    new IntervalSet(45,60,["a"]),
+                    new IntervalSet(50,60,[], [], 1),
+                ]
+
+                const totalAvailability = getIntervalsWithAppointmentCapacity(shifts, breaks.concat(appointments))
+
+                console.log(totalAvailability)
+
+                assert.deepStrictEqual(
+                    getIntervalsWithAppointmentCapacity(shifts, breaks.concat(appointments)), 
+                    [
+                        new Interval(0,15),
+                        new Interval(20,45),
+                        new Interval(50,60)
+                    ]
+                ,"");  
+
+            }); 
+
+            beforeEach(() => {
+                shifts = [
+                    new IntervalSet(0, 60, ["a","b","c"]),
+                ]
+        
+                breaks = [
+                    new IntervalSet(15, 20, ["a","b"]),
+                    new IntervalSet(45, 50, ["c"]),
+                ]
+            });
+
+        });
+
+});
+
 
 describe("Testing getTimeSlotAvailabilities", { skip: true }, () => {
 
@@ -1249,7 +1251,91 @@ describe("Testing getTimeSlotAvailabilities", { skip: true }, () => {
     describe("Testing Happy Paths. TS: [(0->60), (60->120)]", { skip: false }, () => {
 
         let shifts, breaks, timeslots, appointments;
-    //"S: [ (0, 60, [0,1,2]), (60, 120, [3]) ] B: [ (30,40,[0,1]) (90,100,[0,1]) ]"
+   
+
+        it("returns", () => { 
+
+            shifts = [
+                new IntervalSet(0, 60, ["0","1"]),
+                new IntervalSet(90, 120, ["0","1","3"]),
+                //new IntervalSet(60,120, ["3"]),
+            ]
+    
+             breaks = [
+                new IntervalSet(15, 20, ["0","1"]),
+                new IntervalSet(45,50, ["0"]),
+
+                new IntervalSet(105,115, ["0","1"]),
+            ]
+
+            appointments = [
+               // new IntervalSet(15, 20, ["0","1"]), //set, no missing_elements, no overlap_count
+                new IntervalSet(30,40, [], [], 1), //no sets, no missing_elements, overlap_count
+                new IntervalSet(35,45, [], [], 1),
+                new IntervalSet(45,50, [], [], 1),
+
+                new IntervalSet(90,106, [], [], 1),
+                //new IntervalSet(40,50, [], [], 1),
+                //new IntervalSet(35,55, [], [], 1), //no sets, no missing_elements, overlap_count
+               // new IntervalSet(35,45, ["0"], [], 0),
+               // new IntervalSet(35,45, [], [], 1),
+
+            ]
+
+            let _timeslots = [
+                new Interval(0,60),
+                new Interval(60,120)
+            ]
+
+
+            function getIntervalsWithAvailability(availability, unavailability){
+
+                const diffed = splitDiffOverlappingIntervalSets(availability, unavailability)
+                const merged = mergeConsecutiveIntervalSets(diffed,areSetsEqual)
+                const withCapacity = merged.filter(({overlap_count, set})=>overlap_count < set.length)
+                return mergeConsecutiveIntervalSets(withCapacity,()=>true)
+            }
+
+            const totalAvailability = getIntervalsWithAvailability(shifts, breaks)
+            const adjustedAvailability = getIntervalsWithAvailability(shifts, appointments.concat(breaks))
+
+          //  console.log("totalAvailability:", totalAvailability)
+         // console.log("adjustedAvailability intervals:", adjustedAvailability)
+         // console.log("totalAvailability intervals:", totalAvailability)
+
+          console.log("totalAvailability:", getTimeSlotAvailabilities(totalAvailability, 10, _timeslots))
+          console.log("adjustedAvailability:", getTimeSlotAvailabilities(adjustedAvailability, 10, _timeslots))
+        
+            /*
+            const aptsBreaks = splitDiffOverlappingIntervalSets(shifts, appointments.concat(breaks))
+            const onlyBreaks = splitDiffOverlappingIntervalSets(shifts, breaks)
+
+            console.log( "aptsBreaks", aptsBreaks )
+            console.log( "onlyBreaks", onlyBreaks )
+
+            const bb = mergeConsecutiveIntervalSets(b,areSetsEqual)
+
+            console.log( "cleaned", bb )
+
+            const c = bb.filter(({overlap_count, set})=>overlap_count < set.length)
+
+            console.log( "filtered out intervals with too many overlaps", c )
+
+            const cc = mergeConsecutiveIntervalSets(c,()=>true)
+
+            console.log( "merged consecutive intervals", cc )
+
+            const ccc = b.filter(({overlap_count, set})=>overlap_count < set.length)
+            const cccc = mergeConsecutiveIntervalSets(ccc,()=>true)
+*/
+          //  console.log(getTimeSlotAvailabilities(cc, 10, _timeslots))
+
+
+           
+
+            /*
+
+             //"S: [ (0, 60, [0,1,2]), (60, 120, [3]) ] B: [ (30,40,[0,1]) (90,100,[0,1]) ]"
         it("returns proper times for every timeslot. service_duration: 10", { skip: true }, () => { 
     
             shifts = [
@@ -1333,97 +1419,22 @@ describe("Testing getTimeSlotAvailabilities", { skip: true }, () => {
                 ],"");  
              
         }); 
-
-        it("returns", () => { 
-    
-            shifts = [
-                new IntervalSet(0, 60, ["0","1"]),
-                //new IntervalSet(60,120, ["3"]),
-            ]
-    
-             breaks = [
-                new IntervalSet(15, 20, ["0","1"]),
-                new IntervalSet(45,50, ["0"]),
-            ]
-
-            appointments = [
-                new IntervalSet(15, 20, ["0","1"]),
-                new IntervalSet(30,40, [], [], 1),
-                new IntervalSet(35,45, ["0"]),
-                new IntervalSet(35,55, [], [], 1),
-               // new IntervalSet(35,45, ["0"], [], 0),
-               // new IntervalSet(35,45, [], [], 1),
-
-            ]
-
-            let _timeslots = [
-                new Interval(0,60),
-                //new Interval(60,120)
-            ]
-
-            //console.log( "appointments", appointments )
-
-            const a = splitUnionOverlappingIntervalSets(appointments)
-
-           // console.log( "new merger", a )
-
-            const b = splitDiffOverlappingIntervalSets(shifts, appointments)
-
-            console.log( "new merger", b )
-
-
-            const c = b.filter(({overlap_count, set})=>overlap_count < set.length)
-
-            console.log( "filtered out intervals with too many overlaps", c )
-
-            /*
-                how to merge appointments with breaks?
-                appointments = [
-                    "confirmed" appointments can use an interval set with employee id 
-                    new IntervalSet(35, 50, [ "0" ]),
-                    how can "requested" appointments be merged
-                    new IntervalSet(35, 50, [ ?? ]),
-                ]
-
-                algo for merging requested appointments:
-
-                    combine the breaks with the confirmed appointments
-                    split = splitDiffOverlappingIntervalSets(shifts, breaks)
-                    make sure not to filter the empty sets
-
-                    merge the requested appointments together by counting the overlaps, not merging
-                        - use the old counting algo?
-                        - or just make a new "temp id" to add to the set of each 
-
-                    for each merged requested appointment:
-                        get the start, end point
-                        walk split from start until start is within interval
-                            starting from interval from above, walk split until end is within interval
-                        
-                        for each intervals walked in split
-                            check if the set size is <= merged requested appointment set size
-                                if it is, flag it
-
-                abovethis wount work
-                i need to :
-                    combine/union the breaks and appointments
-
-                combine the breaks with all the appointments
-                modify intervalsets so it stores both discrete employees and overlap counts
-                modify splitUnionOverlappingIntervalSets so it dinguishes between overlap intervals and discrete intervals 
-                and splits unions overlap/discrete intervals correctly
-
+            
 
 
             */
     
-            const split = splitDiffOverlappingIntervalSets(shifts, breaks)
+           // const split = splitDiffOverlappingIntervalSets(shifts, breaks)
 
-        // console.log( "split", split )
+       //  console.log( "split", split )
             
-            const merged = mergeConsecutiveIntervalSets(split, areSetsNonEmpty)
+           // const merged = mergeConsecutiveIntervalSets(split, areSetsNonEmpty)
+
+           
 
            // console.log( "MERGED", merged )
+
+
 
            
 /*
@@ -1523,6 +1534,87 @@ describe("Testing getTimeSlotAvailabilities", { skip: true }, () => {
     });
 
 });
+
+
+/*
+
+TESTING DECORATORS
+
+function addDecorators2(context, decorators ){
+    //this.this = context
+    const {set, missing_elements, overlap_count } =  decorators
+
+    if(set) context.set = set
+    if(missing_elements) context.missing_elements = missing_elements
+    if(overlap_count) context.overlap_count = overlap_count
+}
+
+class Test{
+    decorators = []
+    constructor(_decorators = {}){
+
+        this.decorators = Object.keys(_decorators)
+
+        //const {set, missing_elements, overlap_count } =  _decorators
+
+       //console.log(set, missing_elements, overlap_count)
+
+       this.addDecorators(_decorators)
+       //addDecorators2(this,_decorators)
+       
+
+        this.a = 5
+       // Test.prototype.getValue = function (){console.log("hi")}
+
+    }
+
+    addDecorators(decorators){
+
+        const {set, missing_elements, overlap_count } =  decorators
+
+        if(set) this.set = set
+        if(missing_elements) this.missing_elements = missing_elements
+        if(overlap_count) this.overlap_count = overlap_count
+
+    }
+}
+
+const decorators = {
+    //set: [1,3],
+   // set: [],
+  missing_elements: [2,3],
+   overlap_count: 101
+}
+
+const d = new Test(decorators)
+
+console.log(d.set, d.missing_elements, d.overlap_count)
+
+const f = new Test()
+
+Test.prototype.getValue = function (){console.log("hi")}
+
+f.getValue()
+d.getValue()
+
+   function getIntervalsWithCapacity(availability, unavailability){
+
+                const diffed = splitDiffOverlappingIntervalSets(availability, unavailability)
+
+              //  console.log("diffed", diffed)
+                //console.log("merged", merged)
+
+               // const merged = mergeConsecutiveIntervalSets(diffed,areSetsEqual)
+
+               // console.log("merged length", merged.length)
+              //  console.log("merged", merged)
+                const withCapacity = diffed.filter(({overlap_count, set})=>overlap_count < set.length)
+
+                //note that this causes overlap_count and missing_elements props on these intervals to get lost 
+                return mergeConsecutiveIntervalSets(withCapacity,()=>true)
+            }
+
+*/
 
 
 
