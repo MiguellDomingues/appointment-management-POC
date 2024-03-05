@@ -6,6 +6,9 @@ import { Calendar,  Views, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
 //import { momentLocalizer } from "react-big-calendar";
 
+import AppointmentBooking from './calendarMocks/AppointmentBooking'
+import ModalWrapper from './ModalWrapper'
+
 import TestingRBC from './calendarMocks/TestingRBC'
 
 import TestingRBCEmpView from './calendarMocks/TestingRBCEmpView'
@@ -36,6 +39,8 @@ function getPage(body){
      // return <ConfigurationPage/>
     case "testingDT":
       return <TestingPage/>
+    case "appointment_picker":
+      return <AppointmentPicker/>
       /*
     case "testingRBC":
       return <TestingRBC/>
@@ -52,7 +57,7 @@ function getPage(body){
 //<span onClick={e=>setBody("config")}>Configuration</span>
 //  <span onClick={e=>setBody("testingRBC")}>TestingRBC</span>
 //<span onClick={e=>setBody("testingEmpView")}>TestingRBCEmpView</span>
-//
+// <span onClick={e=>setBody("appointmentcalendar")}>Todays Scedule - Summary</span>
 function App() {
 
   const [body, setBody] = useState("availability")
@@ -62,7 +67,8 @@ function App() {
       
       <span onClick={e=>setBody("availability")}>Availability</span>
       <span onClick={e=>setBody("testingDT")}>TestingDT</span>
-      <span onClick={e=>setBody("appointmentcalendar")}>Appointment Calendar</span>
+      <span onClick={e=>setBody("appointmentcalendar")}>Todays Scedule - By Resource</span>
+      <span onClick={e=>setBody("appointment_picker")}>Select Appointment</span>
 
     </div>
     <div className="body">
@@ -89,6 +95,18 @@ function App() {
 */
 
 export default App
+
+function AppointmentPicker(){
+
+  const [open,setOpen] = useState(false)
+
+  return <>
+    <button onClick={()=>setOpen(true)}>Make Appointment</button>
+    <ModalWrapper isOpen={open} close={()=>setOpen(false)}>              
+          <AppointmentBooking onClose={()=>setOpen(false)}/>                         
+      </ModalWrapper>   
+  </>
+}
 
 function TableLayOut({data, title}){
 
