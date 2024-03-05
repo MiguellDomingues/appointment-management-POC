@@ -7,6 +7,9 @@ import useBoundStore from "../store";
 
 import moment from "moment";
 
+//import {appointments} from '../assets/mock_data.js'
+import {Interval} from '../classes.js'
+
 import { 
     getTimeSlotStep,
     getMinMaxWorkingPlanTimes,
@@ -95,83 +98,83 @@ function createConfirmMessage({title, resourceId, start}, tStart, tResourceId){
     return `Confirm moving ${title} from ${resourceId} (${dateToTimeString(start)}) to ${tResourceId} (${dateToTimeString(tStart)})`
 }
 
-//function createShiftEvents
+function createShiftEvents(workDay){
+
+    return workDay.shifts.map(shift=>{
+        const sTime = shift.startTimeToHMObject()
+        const eTime = shift.endTimeToHMObject()
+        return createTodayEvent("", EVENT_TYPES.SHIFT, sTime.h, sTime.m, eTime.h, eTime.m, shift.set)
+    })  
+}
+
+function createResources(workDay, getEmployeeById){
+
+    const shiftEmps = new Set()
+    workDay.shifts.forEach(shift=>shift.set.forEach(emp=>shiftEmps.add(emp)))
+
+    const resources = []
+            
+    shiftEmps.forEach(
+        (empId)=>{
+            const {id, name: title} = getEmployeeById(empId)
+            resources.push({id, title}) //normally the employee id would be the resource id     
+    })
+
+    resources.push({
+        id: "Requested Appointments",
+        title: "Requested Appointments"
+    })
+
+    const adjustedResources = resources.map(({ id: Id, title: Title, ...rest }) => ({
+        Id,
+        Title,
+        ...rest
+     }))
+
+     return adjustedResources  
+}
 
 
 function AppointmentCalendar(){
 
     const {
-        shifts, breaks, employees, workDays,
+        shifts, breaks, employees, workDays, appointments,
         getBreakById,
         getShiftById,
         getEmployeeById,
     } = useBoundStore((state) => ({...state})) //shorthand to get all data/funcs of obj
-    
-    const { _resources, _shiftEvents } = useMemo(
-        ()=>{
 
-            const todaysSceduale = initObjects(workDays,getBreakById, getShiftById)[0]
-
-            const emps = []
-            const shifts = []
-            
-            todaysSceduale.shifts.forEach(shift=>{
-
-                const sTime = shift.startTimeToHMObject()
-                const eTime = shift.endTimeToHMObject()
-
-                shifts.push(createTodayEvent("", EVENT_TYPES.SHIFT, sTime.h, sTime.m, eTime.h, eTime.m, shift.set))
-
-                shift.set.forEach(emp=>{
-                    //console.log(emp)
-                    emps.push(emp)
-                })
-            })
-
-            const resources = []
-            
-            new Set(emps).forEach(
-                (empId)=>{
-                    const {id, name: title} = getEmployeeById(empId)
-                    resources.push({id, title}) //normally the employee id would be the resource id
-                    //resources.push({id: title, title}) //make the id of the resource the title for now         
-            })
-            
-            resources.push({
-                id: "Requested Appointments",
-                title: "Requested Appointments"
-            })
-
-            const adjustedResources = resources.map(({ id: Id, title: Title, ...rest }) => ({
-                Id,
-                Title,
-                ...rest
-             }))
-
-           
-            return {_resources: adjustedResources, _shiftEvents: shifts}
-
-        }
-    , [workDays])
-
-    console.log("_resources", _resources)
-    console.log("_shiftEvents", _shiftEvents)
-
-
-    const [ appointmentEvents, setAppointmentEvents ] = useState(appointmentDayEvents)
+   // console.log("apts",appointmentDayEvents)
+    console.log("appointments",appointments)
+    //console.log("apts d", moment(appointments[0].date))
+   // console.log("apts e", moment(appointments[0].date))
+   
+    const [ appointmentEvents, setAppointmentEvents ] = useState(()=>createAppointmentEvents(appointments)) //
 
     const [ selectedAppointment, setSelectedAppointment ] = useState(false)
-
-    const summaryEvents = useMemo(()=>createResourceSummaryEvents(appointmentEvents,_resources), [appointmentEvents,_resources])//
-
 
     const [timestep, setTimeStep] = useState(15)
 
     const [view, setView] = useState(Views.DAY)
 
-    //const [test, setTest] = useState(0)
-
     const [debug, setDebug] = useState("")
+
+    const { resources, shiftEvents } = useMemo(
+        ()=>{
+            const todaysSceduale = initObjects(workDays,getBreakById, getShiftById)[0]
+
+            return {
+                resources:   createResources(todaysSceduale,getEmployeeById),
+                shiftEvents: createShiftEvents(todaysSceduale)
+        }
+
+        }
+    , [workDays])
+
+    const summaryEvents = useMemo(()=>createResourceSummaryEvents(appointmentEvents,resources), [appointmentEvents,resources])//
+
+    console.log("resources", resources)
+    console.log("_shiftEvents", shiftEvents)
 
     function incrementTS(){setTimeStep((timestep)=>timestep+5)}
     function decrementTS(){setTimeStep((timestep)=>timestep-5)}
@@ -272,14 +275,14 @@ function AppointmentCalendar(){
             setDebug(`onSelecting: ${moment(end).hour()} ${moment(end).minute() } `)
     
             //or is overlapping another appointment, stop selecting
-            if(!isAppointmentOverlappingWithShift(start, end, resourceId, _shiftEvents) ||   //if the selection doesnt start within a shift or doesnt end within a shift, 
+            if(!isAppointmentOverlappingWithShift(start, end, resourceId, shiftEvents) ||   //if the selection doesnt start within a shift or doesnt end within a shift, 
                 isAppointmentOverlapping(start, end, resourceId, null, appointmentEvents) ||
                 moment(end).hour() === 0 && moment(end).minute() === 0){
                 return false
             }
             return true
         }
-    ,[appointmentEvents,_shiftEvents])
+    ,[appointmentEvents,shiftEvents])
 
     //this function is fired every frame while a user holds down lmb over a shift
     //releasing lmb prompts for appointment creation
@@ -316,7 +319,7 @@ function AppointmentCalendar(){
 
    
     const resourceAccessorStoryArgs = {
-      min: new Date(2024, 1, 19, 8 , 0, 0, 0),
+      min: new Date(2024, 1, 19, 8 , 0, 0, 0),  // should be based on the dotw open/close times
       max: new Date(2024, 1, 19, 17, 0, 0, 0, 0),
       scrollToTime: Date.now(),
        // min: new Date(2015, 3, 4, 8 , 0, 0, 0),
@@ -325,13 +328,14 @@ function AppointmentCalendar(){
       defaultView: view, //Views.MONTH,
       toolbar: true,
       views: [Views.MONTH, Views.DAY],
-      backgroundEvents: _shiftEvents,//shiftEvents,
+      backgroundEvents: shiftEvents,//shiftEvents,
       events: appointmentEvents.concat(summaryEvents),//appointmentDayEvents,///
       step: timestep,
       localizer: localizer,
       formats: formats,
+
       resourceIdAccessor: 'Id',
-      resources: _resources,//resources,//adjustedResources,
+      resources: resources,
       resourceTitleAccessor: 'Title',
 
       onSelectEvent: onSelectEvent,
@@ -362,8 +366,6 @@ function AppointmentCalendar(){
 
     }
 
-
-
     //triggered when dropping a dragged appointment into a resource 
     const onEventDrop = useCallback(
         ({event,start,end,resourceId, isAllDay}) => {
@@ -374,7 +376,7 @@ function AppointmentCalendar(){
             //'Requested Appointment' resource 
             //a shift event within another resource that doesnt overlap another appointment
             if( resourceId !== 'Requested Appointments' && 
-                !isAppointmentOverlappingWithShift(start, end, resourceId, _shiftEvents)){
+                !isAppointmentOverlappingWithShift(start, end, resourceId, shiftEvents)){
                 //!isAppointmentOverlapping(start, end, resourceId, null, _shiftEvents)){
                 window.alert("no valid shift") 
                 return
@@ -397,10 +399,7 @@ function AppointmentCalendar(){
                 })          
             } 
        
-      },[appointmentEvents,_shiftEvents,setAppointmentEvents])
-
-
-
+      },[appointmentEvents,shiftEvents,setAppointmentEvents])
 
 
     const dndArgs = {
@@ -443,10 +442,6 @@ function AppointmentCalendar(){
                 <div>End:    {dateToTimeString(selectedAppointment.end)}</div>
             </div>
         }
-        
-        
-        
-
     </>)
   }
 
@@ -454,27 +449,74 @@ export default AppointmentCalendar
 
   let idCounter = 0
 //SHIFT
+/*
 const shiftEvents = [
     createTodayEvent("", EVENT_TYPES.SHIFT, 8, 0, 17, 0, ['Pam','John']),
     createTodayEvent("", EVENT_TYPES.SHIFT, 8, 0, 12, 0, ['Gina']),
     createTodayEvent("", EVENT_TYPES.SHIFT, 13, 0, 17, 0, ['Gina']),
-]
+]*/
 
+//creating events from the mock_data file
+function createAppointmentEvents(appointments){
+    return appointments.map(appointment=>{
+
+        const { start, end, customer_id, status, assigned_to } = appointment
+    
+        const _status = status === "REQUESTED" ? 'Requested Appointments' : assigned_to
+    
+        const i = new Interval(start,end)
+    
+        return createTodayEvent(
+            `${customer_id}s haircut`,
+            EVENT_TYPES.APPOINTMENT,
+            i.startTimeToHMObject().h,
+            i.startTimeToHMObject().m,
+            i.endTimeToHMObject().h,
+            i.endTimeToHMObject().m,
+            _status,
+        )
+    })
+}
+
+/*
+const appointmentDayEvents = appointments.map(appointment=>{
+
+    const { start, end, customer_id, status, assigned_to } = appointment
+
+
+    const _status = status === "REQUESTED" ? 'Requested Appointments' : assigned_to
+
+    const i = new Interval(start,end)
+
+    return createTodayEvent(
+        `${customer_id}s haircut`,
+        EVENT_TYPES.APPOINTMENT,
+        i.startTimeToHMObject().h,
+        i.startTimeToHMObject().m,
+        i.endTimeToHMObject().h,
+        i.endTimeToHMObject().m,
+        _status,
+    )
+})*/
+
+
+/*
  const appointmentDayEvents = [
 
-    createTodayEvent("Bobs Haircut", EVENT_TYPES.APPOINTMENT, 8, 40, 9, 5, '3C4XnbQJLbTZ6GRAAwx1F'),
+    createTodayEvent("Bobs Haircut", EVENT_TYPES.APPOINTMENT, 8, 40, 8, 55, '3C4XnbQJLbTZ6GRAAwx1F'),
     createTodayEvent("Jacks Haircut", EVENT_TYPES.APPOINTMENT, 10, 0, 10, 15, 'VDwZ7TXS5cbWKDbGJG8vD'),
-    createTodayEvent("Joes Haircut", EVENT_TYPES.APPOINTMENT, 11, 15, 12, 0, 'ayHDCRR5fL0Hr7w3pRHFP'),
+    createTodayEvent("Joes Haircut", EVENT_TYPES.APPOINTMENT, 11, 15, 11, 30, 'ayHDCRR5fL0Hr7w3pRHFP'),
     createTodayEvent("Marys Hair Colouring", EVENT_TYPES.APPOINTMENT, 12, 30, 12, 55, '3C4XnbQJLbTZ6GRAAwx1F'),
 
     createTodayEvent("Zoeys Peticure", EVENT_TYPES.APPOINTMENT, 9, 10, 9, 25, 'c444AUe057uwxV4cxoNyT'),
-    createTodayEvent("Susans Manicure", EVENT_TYPES.APPOINTMENT, 10, 15, 10, 35, 'ayHDCRR5fL0Hr7w3pRHFP'),
-    createTodayEvent("Judys Hair Removal", EVENT_TYPES.APPOINTMENT, 10, 20, 10, 55, 'VDwZ7TXS5cbWKDbGJG8vD'),
+    createTodayEvent("Susans Manicure", EVENT_TYPES.APPOINTMENT, 10, 15, 10, 30, 'ayHDCRR5fL0Hr7w3pRHFP'),
+    createTodayEvent("Judys Hair Removal", EVENT_TYPES.APPOINTMENT, 10, 20, 10, 35, 'VDwZ7TXS5cbWKDbGJG8vD'),
 
     //can pass components to event title
     createTodayEvent( "Pending", EVENT_TYPES.APPOINTMENT, 11, 15, 11, 30, 'Requested Appointments'),
 
  ]
+ */
 
 
 
@@ -491,7 +533,82 @@ const shiftEvents = [
         </div>
  */
 
+
+
         /*
+
+         export const emplist = [
+
+    {
+        id: 'Pam',
+        title: 'Pam',
+        data: {str: "im id c"}
+    },
+
+    {
+        id: 'Gina',
+        title: 'Gina',
+        data: {str: "im id a"}
+    },
+
+    {
+        id: 'John',
+        title: 'John',
+        data: {str: "im id a"}
+    },
+
+    {
+        id: 'George',
+        title: 'George',
+        data: {str: "im id a"}
+    },
+
+    {
+        id: 'Requested Appointments',
+        title: 'Pending Appointments',
+        data: {str: "im id a"}
+    },
+]
+
+
+     /*
+            const emps = []
+            const shifts = []
+            
+            todaysSceduale.shifts.forEach(shift=>{
+
+                const sTime = shift.startTimeToHMObject()
+                const eTime = shift.endTimeToHMObject()
+
+                shifts.push(createTodayEvent("", EVENT_TYPES.SHIFT, sTime.h, sTime.m, eTime.h, eTime.m, shift.set))
+
+                shift.set.forEach(emp=>{
+                    //console.log(emp)
+                    emps.push(emp)
+                })
+            })
+
+            const resources = []
+            
+            new Set(emps).forEach(
+                (empId)=>{
+                    const {id, name: title} = getEmployeeById(empId)
+                    resources.push({id, title}) //normally the employee id would be the resource id
+                    //resources.push({id: title, title}) //make the id of the resource the title for now         
+            })
+            
+            resources.push({
+                id: "Requested Appointments",
+                title: "Requested Appointments"
+            })
+
+            const adjustedResources = resources.map(({ id: Id, title: Title, ...rest }) => ({
+                Id,
+                Title,
+                ...rest
+             }))
+
+
      function testing(){
         //get the workday for today
         //normally this would check todays date, get the dotw from the dates day, and fetch the dotw from that
@@ -591,38 +708,7 @@ const shiftEvents = [
     } )
     */
 
- export const emplist = [
 
-    {
-        id: 'Pam',
-        title: 'Pam',
-        data: {str: "im id c"}
-    },
-
-    {
-        id: 'Gina',
-        title: 'Gina',
-        data: {str: "im id a"}
-    },
-
-    {
-        id: 'John',
-        title: 'John',
-        data: {str: "im id a"}
-    },
-
-    {
-        id: 'George',
-        title: 'George',
-        data: {str: "im id a"}
-    },
-
-    {
-        id: 'Requested Appointments',
-        title: 'Pending Appointments',
-        data: {str: "im id a"}
-    },
-]
 
 function createDateToday(hour, minute){
     return new Date(new Date().getFullYear(),new Date().getUTCMonth(),new Date().getUTCDate(),hour,minute,0,0)
