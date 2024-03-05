@@ -53,38 +53,6 @@ export class WorkDay{
         return this.isOpen() ? this.interval.end : ""
     }
 
-    // get shiftIntervalSets
-    // get breakIntervalSets
-
-    /*
-    createDaysCalendarEvents( workDayCB, intervalSetCB){
-
-        const cloned = _.cloneDeep(this)
-
-        const callenderEvent = {
-            dayOfTheWeek: 20+dotw
-            id: (sttaic),
-
-        }
-
-
-        {transformed, ...rest} = workDayCB(cloned) 
-        return transformed.map((is)=>{
-
-            const startHoursMinutes = is.startTimeToHMObject()   
-            const endHoursMinutes = is.endTimeToHMObject()
-
-            start: new Date("2023", 10, dayOfTheWeek, startHoursMinutes.h , startHoursMinutes.m , 0, 0), 
-            end: new Date("2023", 10, dayOfTheWeek, endHoursMinutes.h, endHoursMinutes.m, 0, 0), 
-            
-
-            return intervalSetCB(is, cloned, ...rest)
-        })
-
-
-    }
-    */
-
     toString(){
         return `dotw: ${this.dotw}, open: ${this.open}, close: ${this.close}, shifts: [${this.shifts}], breaks: [${this.breaks}]`
     }
@@ -163,9 +131,8 @@ export class Interval {
     }
 }
 
-export class IntervalSet{
 
-    //missing_elements = []
+export class IntervalSet{
 
     constructor(start, end, set, missing_elements, overlap_count){
         this.interval = new Interval(start, end)
@@ -184,6 +151,22 @@ export class IntervalSet{
 
     get duration(){
         return this.interval.duration;
+    }
+
+    get has_capacity(){
+        return this.overlap_count < this.set.length
+    }
+
+    get remaining_capacity(){
+        return this.set.length - this.overlap_count
+    }
+
+    get current_capacity(){
+        return this.missing_elements.length + this.overlap_count
+    }
+
+    get max_capacity(){
+        return this.missing_elements.length + this.set.length
     }
 
     startTimeToHMObject(){
