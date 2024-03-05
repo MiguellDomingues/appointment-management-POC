@@ -1,13 +1,65 @@
 import {create} from "zustand";
 import {produce} from "immer";
 
+import { persist, createJSONStorage } from 'zustand/middleware'
+
 import { nanoid } from 'nanoid'
 
 import _  from 'lodash';
 
-import {employees, shifts, breaks,workDays } from "./assets/mock_data"
+import {employees, shifts, breaks,workDays, appointments } from "./assets/mock_data"
 
 import { DOTW_STRINGS } from "./classes"
+
+const createAppointmentsSlice = 
+
+    (set,get) => {
+        console.log("inside createAppointmentSlice (set) ")
+        return {
+            appointments: appointments,
+            addAppointment: (payload) =>
+                set(
+                    produce(
+                        (draft) => {
+                                    const {date, start, end, customer_id, service_id, status, assigned_to} = payload
+                                    draft.appointments.push({
+                                        id: nanoid(),
+                                        date, start, end, customer_id, service_id, status, assigned_to
+                                    });
+                                }        
+                            )
+                    ),
+            removeAppointment: (payload) =>
+                set(
+                    produce((draft) => {
+                        const appointmentsIndex = draft.appointments.findIndex((el) => el.id === payload);
+                        draft.appointments.splice(appointmentsIndex, 1); 
+                        
+                    })
+                ),
+            patchAppointment: (payload) =>
+            set(
+                produce((draft) => {
+                    console.log("patchAppointment: ", payload)
+                    const {id, date, start, end, customer_id, service_id, status, assigned_to} = payload
+                    const appointment = draft.appointments.find((apt) => apt.id === id);
+
+                    appointment.start = start;
+                    appointment.end = end;
+                    appointment.date = date;
+                    appointment.customer_id = customer_id;
+                    appointment.service_id = service_id
+                    appointment.status = status
+                    appointment.assigned_to = assigned_to
+                    
+                })
+            ),
+            getAppointmentById: (id)=>{
+                return get().appointments.find(e=>e.id===id)
+            },
+
+        }
+    }
 
 
 const createShiftsSlice = 
@@ -239,13 +291,38 @@ const createWorkDaysSlice =
             getMissingWorkDays: ()=>_.difference(DOTW_STRINGS, get().workDays.map(({dotw})=>dotw))
         }
     }
-  
-const useBoundStore = create((...a) => ({
-    ...createShiftsSlice(...a),
-    ...createEmployeesSlice(...a),
-    ...createBreaksSlice(...a),
-    ...createWorkDaysSlice(...a)
-}))
+
+/*
+const useBoundStore = create(
+
+    persist(
+        (...a) => ({
+            ...createShiftsSlice(...a),
+            ...createEmployeesSlice(...a),
+            ...createBreaksSlice(...a),
+            ...createWorkDaysSlice(...a)
+        }),
+        {
+            name: 'food-storage', // name of the item in the storage (must be unique)
+            storage: createJSONStorage(() => localStorage), // (optional) by default, 'localStorage' is used
+        },
+    )
+)
+*/
+
+
+const useBoundStore = create(
+    (...a) => ({
+        ...createShiftsSlice(...a),
+        ...createEmployeesSlice(...a),
+        ...createBreaksSlice(...a),
+        ...createWorkDaysSlice(...a),
+        ...createAppointmentsSlice(...a)
+    })
+)
+
+
+
 
 export default useBoundStore
 
