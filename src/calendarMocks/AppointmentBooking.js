@@ -4,19 +4,13 @@ import useBoundStore from "../store";
 
 import { useForm } from 'react-hook-form'
 
-
-
-//import IconList from '../components/IconList'
-//import LoadingWrapper from '../components/LoadingWrapper'
-
 import moment from "moment";
 
 import { 
-
     initObjects,
     getIntervalsWithAppointmentCapacity,
     getTimeSlotAvailabilities,
-
+    getWorkDayAvailability
  } from '../intervals.js'
 import { Interval, IntervalSet } from '../classes.js';
 
@@ -145,21 +139,8 @@ function AppointmentBooking({onClose}){
       setSelectedBookingTime(null)
     }, [selectedTimeSlot])
 
+    //console.log("appointmentDuration",appointmentType)
 
-
-    console.log("appointmentDuration",appointmentType)
-
-    //const selectedIcon = selectedIcons[0] ?? null
-
-   // const selectedServiceDuration = location.serviceDurations.find(sd=>sd.service === selectedIcon) ?? null
-
-   
-
-   // console.log("selectedServiceDuration: ", selectedServiceDuration
-
-   //console.log("possibleBookingDates: ", possibleBookingDates)
-  // console.log("dateTimeSlots: ", dateTimeSlots) // (possibleBookingDates.find( ({date})=> date === selected_date)).sceduale )
-  
 
 
     const fetchPossibleBookings = (appointmentType, appointments)=>{
@@ -167,8 +148,6 @@ function AppointmentBooking({onClose}){
         const { duration } = appointmentType
 
         const todaysSceduale = initObjects(workDays,getBreakById, getShiftById)[0]
-
-        const {shifts, breaks} = todaysSceduale
 
         console.log("raw apts: ", appointments)
 
@@ -179,12 +158,6 @@ function AppointmentBooking({onClose}){
                 return new IntervalSet(start, end, [assigned_to])
         })
 
-        //console.log(shifts, breaks, _appointments)
-
-        const a = getIntervalsWithAppointmentCapacity(shifts, breaks.concat(_appointments))
-
-        console.log(duration)
-
         const timeslots = [
             new Interval("08:00","10:00"),
             new Interval("10:00","12:00"),
@@ -192,21 +165,29 @@ function AppointmentBooking({onClose}){
             new Interval("14:00","17:00")
         ]
 
-        const b = getTimeSlotAvailabilities(a, duration, timeslots)
+        //how to check for apts when wanting to book with a specific person?
+        //check set on the intervals for presence of a specific employee id
 
-        console.log(b)
+        //query appointments for apts where date = today + next 2? weeks, time >= now, status = confirmed/requested/in progress
 
-        mock_dates[0].sceduale = timeslots.map((ts,idx)=>{
-            return {
-                start: ts.start,
-                end: ts.end,
-                open_times: b[idx],
-                availability: 50,
+        console.time("timing getWorkDayAvailability");
+        const a = getWorkDayAvailability(todaysSceduale, _appointments, duration, timeslots)
+        console.timeEnd("timing getWorkDayAvailability");
 
-            }
-        })
+       // console.log(a)
 
-        setPossibleBookingDates(mock_dates)
+        console.log(moment().format("dddd"))
+
+        const b = [{
+            date: moment().format("YYYY-MM-DD"),
+            dotw: moment().format("dddd"),
+            ...a
+
+        }]
+
+       // console.log(b)
+
+        setPossibleBookingDates(b)
         setSelectedDate(null)
     }
 
@@ -218,9 +199,9 @@ function AppointmentBooking({onClose}){
             end: selectedBookingTime+appointmentType.duration,
             customer_id: customerName,
             customer_email:customerEmail, 
-            service_id: "",
+            service_id: "",//id of the service; includes name and duration
             status: "REQUESTED",
-            assigned_to: ""
+            assigned_to: "" //REQUESTED apts are assigned to nobody
         })
         onClose()
 
@@ -317,7 +298,7 @@ function AppointmentBooking({onClose}){
             setAppointmentType(null)
             return true
         },
-        canNext: !!selectedBookingTime//selectedTimeSlot  <button onClick={()=>{bookAppointment()}}>CONFIRM</button>
+        canNext: !!selectedBookingTime
       },
       {
         cmp: <>
@@ -370,8 +351,6 @@ const getCSSColorByAvailability = (availability) =>
   availability < 75 ? "yellowgreen" : "green"
 
     
-  
-
 function BookingDates({possibleBookingSlots, selectedDate, selectDate}){
 
 
@@ -405,7 +384,7 @@ function DateTimeSlots({timeSlots, selectedTimeSlot, selectTimeSlot}){
         <span
           style={{
             backgroundColor: getCSSColorByAvailability(ts.availability),
-            border: ts.start === selectedTimeSlot?.start && "5px solid black" 
+            border: ts.start === selectedTimeSlot?.start && "2.5px solid black" 
           }} 
           onClick={e=>selectTimeSlot(ts)} 
           key={idx}>
@@ -437,129 +416,3 @@ function AvailableBookingTimes({availableTimes, selectedTime, selectTime}){
   </>)
 
 }
-
-/*
-function AppointmentPicker({
-  _possibleBookingDates,
-  _selectedDate,
-  selectedIcon
-}){
-
-
-  const [possibleBookingDates, setPossibleBookingDates ] = useState(_possibleBookingDates);
-  const [selectedDate, setSelectedDate ] = useState(_selectedDate);
-
-  const [dateTimeSlots, setDateTimeSlots ] = useState([]);
-  const [selectedTimeSlot, setSelectedTimeSlot ] = useState(null);
-
-  const [bookingTimes, setBookingTimes ] = useState([]);
-  const [selectedBookingTime, setSelectedBookingTime ] = useState(null);
-
-  return( <div className="appointment_selection_layout">
-
-  <div className="appointment_selection_top_layout">
-    <div className="appointment_selection_top_content">
-      <div>appointment selection for {getIconByKey(selectedIcon)}</div>
-      <div>Availability Legend:</div>
-      <div className="appointment_selection_top_legend">
-        <div>Very High</div>
-        <div style={{backgroundColor: getCSSColorByAvailability(80)}}>&emsp;</div>
-        <div>High</div>
-        <div style={{backgroundColor: getCSSColorByAvailability(70)}}>&emsp;</div>
-        <div>Medium</div>
-        <div style={{backgroundColor: getCSSColorByAvailability(45)}}>&emsp;</div>
-        <div>Low</div>
-        <div style={{backgroundColor: getCSSColorByAvailability(20)}}>&emsp;</div>
-      </div>
-      
-    </div>
-  </div>
-
-  <div className="appointment_selection_middle_layout">
-
-    <div className="appointment_selection_middle_content">
-      <BookingDates 
-        possibleBookingSlots={possibleBookingDates} 
-        selectedDate={selectedDate} 
-        selectDate={(selected_date) => setSelectedDate(selected_date)}/>
-    </div>
-
-    <div className="appointment_selection_middle_content">
-      <DateTimeSlots 
-        timeSlots={dateTimeSlots} 
-        selectedTimeSlot={selectedTimeSlot} 
-        selectTimeSlot={(timeSlot)=>setSelectedTimeSlot(timeSlot)}/>
-    </div>
-
-    <div className="appointment_selection_middle_content">
-      <AvailableBookingTimes 
-        availableTimes={bookingTimes} 
-        selectedTime={selectedBookingTime} 
-        selectTime={(time)=>setSelectedBookingTime(time)} />
-    </div>
-
-  </div>
-
-  <div className="appointment_selection_bottom_layout">
-    <div className="appointment_selection_bottom_content">
-      {selectedDate && selectedBookingTime ? 
-      <>
-        booking appointment on: {selectedDate} {totalMinutesToHoursMinutesString(selectedBookingTime)} 
-      </>:<></>}
-    </div>
-  </div>
-
-</div>)
-
-}
-*/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*
-function Flows(){
-  const [currentFlowIndex, setCurrentFlowIndex ] = useState(0)
-
-  return(<div className='auth_body'>
-      
-      {currentFlowCmp}
-      <button disabled={currentFlowIndex === 0} onClick={previousFlow}>Back</button>  
-      <button disabled={currentFlowIndex === flows.length-1} onClick={e=>nextFlow(currentFlowOnNexthandler)}>Next</button>
-  
-    </div>)
-}
-
-  function ServicePicker( {location = {id: null, icons: [], serviceDurations: [{id: null}]} }){
-
-    const services = location.icons ?? []
-    const locationId = location.id ?? ""
-
-    const {selectedIcons, toggleIconSingle } = useIcons();
-
-    const selectedServiceDurationId = (location.serviceDurations.find(sd=>sd.service === selectedIcons[0]))?.id ?? null
-
-    return (<>
-      services
-      <IconList iconSize={26} icons={services} selectedIcons={selectedIcons} toggleIcon={toggleIconSingle}/>   
-    </>)
-  }
-
-  */
