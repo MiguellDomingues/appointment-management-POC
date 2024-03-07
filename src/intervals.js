@@ -267,6 +267,10 @@ export function splitUnionOverlappingIntervalSets(intervalSets){
     
     if(intervalSets.length == 0 ) return []
 
+    intervalSets.forEach(is=>{
+        if(!(is instanceof IntervalSet))
+            throw new Error("Error in splitUnionOverlappingIntervalSets: input must be an IntervalSet object")})
+
     intervalSets = _.cloneDeep(sortIntervals(intervalSets))
     
     let overlapping_intervals = []
@@ -606,6 +610,8 @@ export function getTimeSlotAvailabilities(open_intervals, service_duration, time
     open_intervals = open_intervals ?? [];
     time_slot_intervals = time_slot_intervals ?? [];
     service_duration = service_duration ?? 0
+
+
   
     //assert.equal(service_duration > 0, true, "service_duration must be greater then 0");
    // assert.equal(service_duration <= time_slot_intervals[0].duration, true, "service_duration can not exceed the duration of a time slot");
@@ -662,9 +668,11 @@ export function getIntervalsWithAppointmentCapacity(availability, unavailability
     //keep only the intervals with capacity for an appointment
    // const withCapacity = diffed.filter(({overlap_count, set})=>overlap_count < set.length)
 
-    console.log("capacity intervals: ", diffed)
+   // console.log("capacity intervals: ", diffed)
 
     const withCapacity = diffed.filter((is)=>is.has_capacity)
+
+    //console.log("withCapacity: ", withCapacity)
 
     //intervals that remain and are right next to each other can be merged
     //note that this causes overlap_count and missing_elements props on these intervals to get lost 
@@ -673,7 +681,65 @@ export function getIntervalsWithAppointmentCapacity(availability, unavailability
 }
 
 
+/*
+given the days shifts, breaks (workDay), appointments and service_duration, generate the possible 
+booking times across the day for each time slot
 
+returns an object of the schema:
+    {
+        sceduale: [
+            0 or more....
+            {
+                start: Int // start time (in minutes)
+                end:   Int // end time (in minutes)
+                availability: Int (0-100) // the availability remaining for this time slot, expressed as a percentage
+                open_times: [Int1, Int2..] //the times (in minutes) an appointment may be booked
+            }
+        ],
+        day_availability: Int //the average availability across all the time slots
+    }
+
+*/
+export function getWorkDayAvailability(
+    workDay,          //instance of WorkDay class with days shifts,breaks
+    appointments,     //list of IntervalSet objects converted from appointments
+    service_duration, //requested appointment length
+    time_slots        //list of consecutive Interval objects
+){
+    
+    const {shifts, breaks} = workDay
+
+    const totalAvailabilityIntervals = getIntervalsWithAppointmentCapacity(shifts, breaks)
+    const adjustedAvailabilityIntervals = getIntervalsWithAppointmentCapacity(shifts, appointments.concat(breaks))
+
+    const totalAvailabilityTimeslots = getTimeSlotAvailabilities(totalAvailabilityIntervals, service_duration, time_slots)
+    const adjustedAvailabilityTimeslots = getTimeSlotAvailabilities(adjustedAvailabilityIntervals, service_duration, time_slots)
+
+    return makeObject(totalAvailabilityTimeslots, adjustedAvailabilityTimeslots, time_slots)
+
+}
+
+export function makeObject(totalAvailabilities, adjustedAvailabilities, timeSlots){
+
+    if(timeSlots.length == 0) 
+        throw new Error('Error timeSlots arr can not be empty')
+    if(totalAvailabilities.length !== adjustedAvailabilities.length) 
+        throw new Error('Error adjustedAvailabilities and totalAvailabilities arrs must be same length')
+
+   let availabilityCount = 0
+
+    const sceduale = timeSlots.map(({start,end}, idx)=>{
+        if(totalAvailabilities[idx].length < adjustedAvailabilities[idx].length) 
+            throw new Error('Error totalAvailabilities can not be greater than adjustedAvailabilities ')
+        const availability = totalAvailabilities[idx].length > 0 ? Math.trunc( (adjustedAvailabilities[idx].length/totalAvailabilities[idx].length)*100 ) : 0
+        availabilityCount+=availability
+
+        return {start,end,availability, open_times: adjustedAvailabilities[idx]}
+    })
+
+    return {sceduale,day_availability: Math.trunc( (availabilityCount/sceduale.length) )}
+
+}
 
 
 
