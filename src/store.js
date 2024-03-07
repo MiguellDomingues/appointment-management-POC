@@ -41,7 +41,7 @@ const createAppointmentsSlice =
             set(
                 produce((draft) => {
                     console.log("patchAppointment: ", payload)
-                    const {id, date, start, end, customer_id, service_id, status, assigned_to} = payload
+                    const {id, date, start, end, customer_id, service_id, status, assigned_to,customer_email} = payload
                     const appointment = draft.appointments.find((apt) => apt.id === id);
 
                     appointment.start = start;
@@ -51,6 +51,7 @@ const createAppointmentsSlice =
                     appointment.service_id = service_id
                     appointment.status = status
                     appointment.assigned_to = assigned_to
+                    appointment.customer_email = customer_email
                     
                 })
             ),
