@@ -155,13 +155,14 @@ function createShiftEvents(workDay){
 function printAvailabilityEvents(availabilityIntervals, getEmployeeById){
 
    availabilityIntervals.forEach(s=>{
-    const {start, end, set, missing_elements, overlap_count} = s
+    const {start, end, set, missing_elements, overlap_count, remaining_capacity} = s
     console.log(`
         start: ${Interval.totalMinutesToHoursMinutesString(start)}
         end: ${Interval.totalMinutesToHoursMinutesString(end)}
         set: ${set.map(getEmployeeById).map(e=>e.name).join(",")}
         me: ${missing_elements.map(getEmployeeById).map(e=>e.name).join(",")}
         overlap_count: ${overlap_count}
+        remaining_capacity: ${remaining_capacity}
         //////////////////////////////////////////////////
     `)
    })
@@ -220,18 +221,24 @@ function createAvailabilityEvents(workDay, appointments, getEmployeeById){
 
     const {shifts, breaks} = workDay
 
+    //remove requested appointments from the availability intervals
+    const appointmentIntervals = appointments
+        .filter(({status})=>status !== APPOINTMENT_STATUS.REQUESTED)
+            .map(({start,end,assigned_to})=>new IntervalSet(start, end, [assigned_to]))
+    
+    
+    /*
     const appointmentIntervals = appointments.map(({start,end, status, assigned_to})=>{
         if(status === "REQUESTED")
-            return new IntervalSet(start, end, [], [], 1)
+           return new IntervalSet(start, end, [], [], 1)
         else
             return new IntervalSet(start, end, [assigned_to])
     })
+    */
 
     const availabilityIntervals = splitDiffOverlappingIntervalSets(shifts,breaks.concat(appointmentIntervals))
 
     printAvailabilityEvents(availabilityIntervals, getEmployeeById)
-
-    //console.log("////////SPLIT AVAILABILITY EVENTS: //////////", split)
 
     const availabilityEvents = availabilityIntervals.map(intervalSet=>{
         const {remaining_capacity,max_capacity} = intervalSet
@@ -239,8 +246,6 @@ function createAvailabilityEvents(workDay, appointments, getEmployeeById){
         const eTime = intervalSet.endTimeToHMObject()
         return createTodayEvent("", EVENT_TYPES.AVAILABILITY, sTime.h, sTime.m, eTime.h, eTime.m, "Availability", {remaining_capacity,max_capacity})
     })  
-
-    //console.log( "////////////////////////", createAvailabilitySummaryEvent(availabilityIntervals) )
 
     return {availabilityEvents, availabilitySummaryEvent: createAvailabilitySummaryEvent(availabilityIntervals) }
 
@@ -259,15 +264,22 @@ function getColorFromPercentage(percentage){
 function AppointmentCalendar(){
 
     const {
-        shifts, breaks, employees, workDays, appointments,
+        workDays, 
+        appointments, 
+        patchAppointment, 
+        getAppointmentById, 
+        addAppointment,
+        removeAppointment,
         getBreakById,
         getShiftById,
         getEmployeeById,
     } = useBoundStore((state) => ({...state})) //shorthand to get all data/funcs of obj
 
-    const [ appointmentEvents, setAppointmentEvents ] = useState(()=>createAppointmentEvents(appointments)) 
+    console.log("/////////////appointments/////////////////",appointments)
 
-    console.log("appointments",appointmentEvents)
+   // const [ appointmentEvents, setAppointmentEvents ] = useState(()=>createAppointmentEvents(appointments)) 
+
+    const  appointmentEvents = useMemo(()=>createAppointmentEvents(appointments,removeAppointment), [appointments])
 
     const [ selectedAppointment, setSelectedAppointment ] = useState(false)
 
@@ -279,7 +291,9 @@ function AppointmentCalendar(){
 
     const todaysSceduale = useMemo(()=> initObjects(workDays,getBreakById, getShiftById)[0], [workDays])
 
-    const { resources, shiftsBreaksEvents } = useMemo(
+    const { 
+        resources, 
+        shiftsBreaksEvents } = useMemo(
         ()=>{
             return {
                 resources:   createResources(todaysSceduale,getEmployeeById),
@@ -287,6 +301,9 @@ function AppointmentCalendar(){
             }
         }
     , [todaysSceduale])
+
+    //console.log("resources",resources)
+
 
     const {
         availabilityEvents,
@@ -373,7 +390,7 @@ function AppointmentCalendar(){
 
         if(type === EVENT_TYPES.APPOINTMENT){//selectedAppointment && selectedAppointment.id === id
             return {
-                className: `${selectedAppointment && selectedAppointment.id === id && `RBC_selected_interval_override`}`,
+                className: `${selectedAppointment?.id === id && `RBC_selected_interval_override`}`,
                 style: {
                   backgroundColor: 'chocolate',
                 },
@@ -408,14 +425,16 @@ function AppointmentCalendar(){
     //this function is fired every frame while an appointment is dragged around the calendar
     const onSelecting = useCallback( 
         ({start, end, resourceId})=>{
+
+            if(resourceId === "Requested Appointments")
+                return true
        
             setDebug(`onSelecting: ${moment(end).hour()} ${moment(end).minute() } `)
     
-            //or is overlapping another appointment, stop selecting
-            if(!isAppointmentOverlappingWithShift(start, end, resourceId, shiftsBreaksEvents) ||   //if the selection doesnt start within a shift or doesnt end within a shift, 
-                isAppointmentOverlapping(start, end, resourceId, null, appointmentEvents) ||
-                moment(end).hour() === 0 && moment(end).minute() === 0){
-                return false
+            if( !isAppointmentOverlappingWithShift(start, end, resourceId, shiftsBreaksEvents) ||   //if the selection doesnt start within a shift or doesnt end within a shift, 
+                isAppointmentOverlapping(start, end, resourceId, null, appointmentEvents) || //or is overlapping another appointment
+                moment(end).hour() === 0 && moment(end).minute() === 0){ //or is a Summary event
+                    return false
             }
             return true
         }
@@ -434,6 +453,21 @@ function AppointmentCalendar(){
             if(action !== "select") return 
 
             if (confirm(`create new appointment?`)) {
+                //recheck this to make sure the correct start/end times are added
+                //noticed sometimes that the start/end times dont match whats seen on the calendar
+                addAppointment({
+                    date: moment()._d,
+                    start:  moment(start).format("k:mm") ,
+                    end:  moment(end).format("k:mm") ,
+                    customer_id: "new customer", //get this from a popup modal
+                    customer_email:"...", 
+                    service_id: "",//id of the service; includes name and duration
+                    //when adding appointments to an employee lane, status = confirmed, assigned_to = emp id
+                    //when adding appointments to the requested apts lane, status = requested, assigned_to = ""
+                    status: resourceId === "Requested Appointments" ? APPOINTMENT_STATUS.REQUESTED :  APPOINTMENT_STATUS.CONFIRMED,  //APPOINTMENT_STATUS.CONFIRMED,
+                    assigned_to: resourceId === "Requested Appointments" ? "" : resourceId,//resourceId //REQUESTED apts are assigned to nobody
+                })
+                /*
                 setAppointmentEvents((prev) => {
                 
                     const newAppointment = 
@@ -449,7 +483,7 @@ function AppointmentCalendar(){
                     setSelectedAppointment(newAppointment)
 
                     return [...prev, newAppointment]
-                })  
+                }) */
             }      
         }
     ,[])
@@ -526,17 +560,53 @@ function AppointmentCalendar(){
             }
 
             if (confirm(createConfirmMessage(event, start, resourceId))) {
+
+                const apt = getAppointmentById(event.data.id)
+
+                patchAppointment({
+                    ...apt, 
+                    start: moment(start).format("k:mm") ,
+                    end: moment(end).format("k:mm"),
+                    assigned_to: resourceId === "Requested Appointments" ? "" : resourceId,
+                    status:   resourceId === "Requested Appointments" ? APPOINTMENT_STATUS.REQUESTED :  APPOINTMENT_STATUS.CONFIRMED           
+                })
+
+                /*
+
+                 console.log("old apt: ",apt)
+
+                const a = {
+                    ...apt, 
+                    start: moment(start).format("k:mm") ,
+                    end: moment(end).format("k:mm"),
+                    assigned_to: resourceId === "Requested Appointments" ? "" : resourceId,
+                    status:   resourceId === "Requested Appointments" ? APPOINTMENT_STATUS.REQUESTED :  APPOINTMENT_STATUS.CONFIRMED           
+                }
+
+                console.log("new apt: ",a)
+
                 setAppointmentEvents((prev) => {
+
+                    console.log(" UPDATING APT ",event)
+                    //console.log("apt object:",getAppointmentById(event.data.id))
+                   // console.log("start/end:", start, ", ", end)
+                    //console.log("resourceId:", resourceId)
+                    console.log("start:", moment(start).format("k:mm") )
+                    console.log("end:", moment(end).format("k:mm") )
+
+
                     const existing = prev.find((ev) => ev.id === event.id) ?? {} //find the event that was just dropped
                     const filtered = prev.filter((ev) => ev.id !== event.id) //get the other events
 
                     setSelectedAppointment({ ...existing, start, end, resourceId })
                     //copy the other events, update the event object with a new start/end time and resourceID
                     return [...filtered, { ...existing, start, end, resourceId }]
-                })          
+                })
+                */  
+
             } 
        
-      },[appointmentEvents,shiftsBreaksEvents,setAppointmentEvents])
+      },[appointmentEvents,shiftsBreaksEvents]) //,setAppointmentEvents
 
 
     const dndArgs = {
@@ -587,7 +657,7 @@ export default AppointmentCalendar
 let idCounter = 0
 
 //creating events from the mock_data file
-function createAppointmentEvents(appointments){
+function createAppointmentEvents(appointments,removeAppointment){
     return appointments.map(appointment=>{
 
         const { start, end, customer_id, status, assigned_to, id } = appointment
@@ -596,9 +666,20 @@ function createAppointmentEvents(appointments){
         const resource = status === "REQUESTED" ? 'Requested Appointments' : assigned_to
     
         const i = new Interval(start,end)
-    
+
+        const eventTitleWrapper = <>
+            <div onClick={e=>{
+                e.stopPropagation()
+                if (confirm(`Delete Appointment ${id}`)) 
+                    removeAppointment(id)          
+            }} 
+            className="cancel_panel_btn">X</div>    
+            {customer_id}s haircut            
+        </>
+
         return createTodayEvent(
-            `${customer_id}s haircut`,
+            eventTitleWrapper,
+            //`${customer_id}s haircut`,
             EVENT_TYPES.APPOINTMENT,
             i.startTimeToHMObject().h,
             i.startTimeToHMObject().m,

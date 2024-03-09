@@ -256,6 +256,12 @@
   row-gap: .125em;
 }
 
+.appointment_event_x_btn{
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
 
 
 
