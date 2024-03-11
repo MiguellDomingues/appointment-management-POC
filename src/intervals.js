@@ -2,6 +2,10 @@ import _  from 'lodash';
 
 import { WorkDay, IntervalSet, Interval } from './classes.js'
 
+//import useBoundStore from "./store.js";
+
+//const getEmployeeById = useBoundStore.getState().getEmployeeById
+
 const MAX_MINUTES_IN_DAY = 60*23 + 59
 
 const DOTW = Object.freeze({
@@ -516,6 +520,7 @@ export function areSetsEqual(lhs, rhs){
     return true
 }
 
+
 export function areSetsNonEmpty(lhs, rhs){
 
     lhs = lhs ?? []
@@ -660,24 +665,241 @@ export function getTimeSlotAvailabilities(open_intervals, service_duration, time
     return time_slot_availabilities
 }
 
-export function getIntervalsWithAppointmentCapacity(availability, unavailability){
+//did some smoke tests and this flow seems to be working 
+// the question is HOW TO  HANDLE REQUESTED APTS?
+// how to factor in the overlap_counts?
+// ** it seems overlap counts are not getting considered at all
+export function test(capacityIntervals, aptDuration,filteredReqApts,getEmployeeById){
 
+    // can prevent any modification of objects
+    //const a = Object.freeze(capacityIntervals[0])
+
+   
+
+    const intervalsByResource = new Map()
+
+    //intervalsByResource.set("__OVERLAPS__", [])
+
+    /*
+    convert
+    a--(A,B)--b, c--(B,C)--d, 
+        0            1
+    to
+    A: (0)
+    B: (0,1)
+    C: (1)
+
+
+capacityIntervals               
+        .forEach((interval)=>  //for each capacity interval....
+            interval.set.forEach(resource=>{   //for each resource in the set list....  
+                    if(intervalsByResource.has(resource)) //if the resource has an entry in the map..
+                        intervalsByResource.get(resource).push(interval) //add this intervals index to the tail
+                    else
+                        intervalsByResource.set(resource, [interval])   //..or make a new entry in the map 
+                }))
+*/
+
+    capacityIntervals               
+        .forEach((interval)=>{ 
+            
+             //for each capacity interval....
+            interval.set.forEach(resource=>{   //for each resource in the set list....  
+                    if(intervalsByResource.has(resource)) //if the resource has an entry in the map..
+                        intervalsByResource.get(resource).push(interval) //add this intervals index to the tail
+                    else
+                        intervalsByResource.set(resource, [interval])   //..or make a new entry in the map 
+            })
+
+           //if(interval.overlap_count > 0)
+               // intervalsByResource.get("__OVERLAPS__").push(interval)
+
+            
+        })
+    
+
+          
+    console.log("intervalsByResource",intervalsByResource)
+
+    /*
+    for each resource, combine consecutive intervals, filter out spans that are too short, 
+    combine all the intervals into a single list          
+    */
+
+    let intervalsWithAvailability = []   
+    
+    const a = new Map()
+
+    intervalsByResource.forEach((intervals, resource) =>{
+        //console.log("split")
+
+     
+        
+        console.log(`**************resource: ${getEmployeeById(resource).name}*************`);
+        //console.log(`resource intervals:`);
+        //printAvailabilityEvents(intervals)
+
+        //console.log(`requested apts:`);
+        //printAvailabilityEvents(filteredReqApts)
+
+        const toInt = toIntervals(filteredReqApts)
+
+        console.log(`tointervals req apts apts:`);
+        printIntervals(toInt)
+
+        //const filteredByOverlap = intervals.filter(i=>i.overlap_count > 0)
+       // console.log(`filteredByOverlap intervals:`);
+       // printAvailabilityEvents(filteredByOverlap)
+
+        //console.log(`merged intervals:`);
+        const merged = toIntervals(mergeConsecutiveIntervalSets(intervals,()=>true))
+
+        /*
+        for each requested apt, check if theres a valid span within merged intervals:
+        */
+
+      
+        //printIntervals(merged)
+       // console.log(`filtered intervals:`);
+        const filtered  = merged.filter((interval)=> interval.duration >= aptDuration)
+
+        console.log(`filtered intervals:`);
+        printIntervals(filtered)
+
+
+        
+        console.log(`////checking req apts for overlaps with filtered:////`);
+
+        let res = []
+
+        filtered.forEach(ra=>{
+            const {start, end} = ra
+
+            //console.log("checking req interval");
+           // printIntervals([ra])
+
+            const olss = toInt.filter(is=>is.end <= end && is.start >= start)
+            
+            if(olss.length > 0){
+                res = res.concat(olss)
+               // console.log("***result:***");
+              //  printIntervals(olss)
+              //  console.log("******");
+            }
+
+        })
+
+        console.log("***result:***");
+        a.set(resource, res)
+        printIntervals(res)
+
+        /*
+        console.log(`////checking req apts////`);
+        toInt.forEach(ra=>{
+            const {start, end} = ra
+
+            console.log("checking req interval");
+            printIntervals([ra])
+
+            const olss = filtered.filter(is=>is.end <= end && is.start >= start)
+            
+            console.log("result:");
+            printIntervals(olss)
+
+        })
+*/
+        //const olss = filtered.filter(is=>is.end <= end && is.start >= start)
+        
+
+        console.log(`////////`);
+
+
+       // console.log(`filtered intervals:`);
+      //  printIntervals(filtered)
+        intervalsWithAvailability = intervalsWithAvailability.concat(filtered)
+        //console.log(`intervals length: ${intervals.length}`);
+        //console.log(`merged spans length: ${toIntervals(mergeConsecutiveIntervalSets(intervals,()=>true)).length}`);
+        //console.log(`merged spans: ${toIntervals(mergeConsecutiveIntervalSets(intervals,()=>true))}`);
+        console.log(`***************************`);
+      })
+
+      console.log(`******requested apt intersecting spans by resource*************`);
+      a.forEach((v,k)=>{
+        console.log(`***${getEmployeeById(k).name}*************`);
+        printIntervals(v)
+
+      })
+
+     // console.log(`intervals combined:`);
+    //  printIntervals(sortIntervals(intervalsWithAvailability))
+     // console.log(`intervals merged:`);
+     // printIntervals(mergeIntervals(intervalsWithAvailability))
+      //mergeIntervals mergeIntervals(intervalsWithAvailability)
+      return mergeIntervals(intervalsWithAvailability)//sortIntervals(intervalsWithAvailability)
+
+   
+}
+
+//this is broke. see test()
+export function getIntervalsWithAppointmentCapacity(availability, unavailability,service_duration){
+
+ 
     //diff the availability intervals (shifts) with the unavailability intervals (appointments/breaks)
-    const diffed = splitDiffOverlappingIntervalSets(availability, unavailability)
+    const capacityIntervals = splitDiffOverlappingIntervalSets(availability, unavailability)
+    //console.log("capacityIntervals", capacityIntervals.length)
+
+   // printAvailabilityEvents(capacityIntervals)
 
     //keep only the intervals with capacity for an appointment
-   // const withCapacity = diffed.filter(({overlap_count, set})=>overlap_count < set.length)
+    const withCapacity = capacityIntervals.filter((is)=>is.has_capacity)
 
-   // console.log("capacity intervals: ", diffed)
+    //console.log("withCapacity: ",withCapacity.length)
 
-    const withCapacity = diffed.filter((is)=>is.has_capacity)
+    //console.log("withCapacity", withCapacity.length)
+    //printAvailabilityEvents(withCapacity)
 
     //console.log("withCapacity: ", withCapacity)
 
     //intervals that remain and are right next to each other can be merged
     //note that this causes overlap_count and missing_elements props on these intervals to get lost 
     //so return just regular intervals
-    return toIntervals(mergeConsecutiveIntervalSets(withCapacity,()=>true))
+    //return toIntervals(mergeConsecutiveIntervalSets(withCapacity,()=>true))
+    return test(withCapacity,service_duration)
+}
+
+export function getIntervalsWithAppointmentCapacity_TESTING(availability, unavailability,service_duration,getEmployeeById){
+
+    const filteredReqApts = unavailability.filter(is=>is.overlap_count > 0)
+    const filteredConApts = unavailability.filter(is=>is.overlap_count === 0)
+
+    console.log("filteredConApts: ",filteredConApts.length)
+
+    console.log("filteredReqApts: ",filteredReqApts.length)
+
+    console.log("unavailability: ",unavailability.length)
+
+
+    //diff the availability intervals (shifts) with the unavailability intervals (appointments/breaks)
+    const capacityIntervals = splitDiffOverlappingIntervalSets(availability, filteredConApts)//unavailability)
+    //console.log("capacityIntervals", capacityIntervals.length)
+
+   // printAvailabilityEvents(capacityIntervals)
+
+    //keep only the intervals with capacity for an appointment
+    const withCapacity = capacityIntervals.filter((is)=>is.has_capacity)
+
+    //console.log("withCapacity: ",withCapacity.length)
+
+    //console.log("withCapacity", withCapacity.length)
+    //printAvailabilityEvents(withCapacity)
+
+    //console.log("withCapacity: ", withCapacity)
+
+    //intervals that remain and are right next to each other can be merged
+    //note that this causes overlap_count and missing_elements props on these intervals to get lost 
+    //so return just regular intervals
+    //return toIntervals(mergeConsecutiveIntervalSets(withCapacity,()=>true))
+    return test(withCapacity,service_duration,filteredReqApts,getEmployeeById)
 }
 
 
@@ -700,20 +922,28 @@ returns an object of the schema:
     }
 
 */
+
+
 export function getWorkDayAvailability(
     workDay,          //instance of WorkDay class with days shifts,breaks
     appointments,     //list of IntervalSet objects converted from appointments
     service_duration, //requested appointment length
-    time_slots        //list of consecutive Interval objects
+    time_slots ,       //list of consecutive Interval objects
+    getEmployeeById
 ){
     
     const {shifts, breaks} = workDay
 
-    const totalAvailabilityIntervals = getIntervalsWithAppointmentCapacity(shifts, breaks)
-    const adjustedAvailabilityIntervals = getIntervalsWithAppointmentCapacity(shifts, appointments.concat(breaks))
+    const totalAvailabilityIntervals = getIntervalsWithAppointmentCapacity_TESTING(shifts, breaks,service_duration,getEmployeeById)
+    const adjustedAvailabilityIntervals = getIntervalsWithAppointmentCapacity_TESTING(shifts, appointments.concat(breaks),service_duration,getEmployeeById)
+
+   
 
     const totalAvailabilityTimeslots = getTimeSlotAvailabilities(totalAvailabilityIntervals, service_duration, time_slots)
     const adjustedAvailabilityTimeslots = getTimeSlotAvailabilities(adjustedAvailabilityIntervals, service_duration, time_slots)
+
+    console.log("totalAvailabilityIntervals: ",totalAvailabilityIntervals)
+    console.log("adjustedAvailabilityIntervals: ",adjustedAvailabilityIntervals)
 
     return makeObject(totalAvailabilityTimeslots, adjustedAvailabilityTimeslots, time_slots)
 
@@ -730,7 +960,7 @@ export function makeObject(totalAvailabilities, adjustedAvailabilities, timeSlot
 
     const sceduale = timeSlots.map(({start,end}, idx)=>{
         if(totalAvailabilities[idx].length < adjustedAvailabilities[idx].length) 
-            throw new Error('Error totalAvailabilities can not be greater than adjustedAvailabilities ')
+           throw new Error(`Error adjustedAvailabilities [${adjustedAvailabilities[idx]}] can not be greater than totalAvailabilities [${totalAvailabilities[idx]}]`)
         const availability = totalAvailabilities[idx].length > 0 ? Math.trunc( (adjustedAvailabilities[idx].length/totalAvailabilities[idx].length)*100 ) : 0
         availabilityCount+=availability
 
@@ -741,7 +971,242 @@ export function makeObject(totalAvailabilities, adjustedAvailabilities, timeSlot
 
 }
 
+/*
+
+*/
+
+function printAvailabilityEvents(availabilityIntervals,getEmployeeById){
+
+    availabilityIntervals.forEach((s, idx)=>{
+     const {start, end, set, missing_elements, overlap_count, remaining_capacity} = s
+     console.log(`
+         start: ${Interval.totalMinutesToHoursMinutesString(start)}
+         end: ${Interval.totalMinutesToHoursMinutesString(end)}
+         set: ${set.map(getEmployeeById).map(e=>e.name).join(",")}
+         me: ${missing_elements.map(getEmployeeById).map(e=>e.name).join(",")}      
+         overlap_count: ${overlap_count}
+         remaining_capacity: ${remaining_capacity}
+         //////////////////////////////////////////////////
+     `)
+    })
+ }
+
+function printIntervals(intervals){
+
+    intervals.forEach(s=>{
+     const {start, end} = s
+     console.log(`
+         start: ${Interval.totalMinutesToHoursMinutesString(start)}
+         end: ${Interval.totalMinutesToHoursMinutesString(end)}
+         //////////////////////////////////////////////////`)
+    })
+ }
+
+function mergeIntervals(sorted_intervals){
+
+    sorted_intervals = sorted_intervals ?? []
+    
+    if(sorted_intervals.length == 0 ) return []
+    
+    sorted_intervals = sortIntervals(sorted_intervals)
+    
+    const merged_intervals = []
+    
+    let p1 = 0;
+    while(p1 < sorted_intervals.length){ 
+    
+        const outer_interval = sorted_intervals[p1]
+    
+        let maximum_end = outer_interval.end
+        const start = outer_interval.start
+    
+        let p2 = p1+1 
+        while(p2 < sorted_intervals.length){ //check the intervals after the outer interval for overlaps
+            const inner_interval = sorted_intervals[p2]
+    
+            if(inner_interval.start > maximum_end){  //..if the inner intervals start is greater than the current max end value
+                break; //it means it falls outside of the previous overlapping intervals
+            }else{   //..otherwise the current inner interval is overlapping..
+                maximum_end = Math.max(maximum_end, inner_interval.end)  // check if it's end point is greater then any previous end points
+                p2++;  // and check the next inner interval
+            } 
+        }
+        //when we 1) found a non-overlapping interval OR have done processing the input in the inner loop, add a single interval that merges all the overlaps
+        merged_intervals.push(new Interval(start, maximum_end)) 
+        
+        p1 = p2 //update the outer pointer so its pointing back to the last interval processed by inner loop
+    }
+    
+    return merged_intervals
+}
+
+
+    /*
+
+    export function testingnewfunc(mergedSpans,antispans){
+
+    mergedSpans = _.cloneDeep(mergedSpans)
+    const new_mergedSpans = _.cloneDeep(mergedSpans)
+
+    console.log("NEW ALGO:", f(new_mergedSpans, antispans))
+    
+}
+
+    function cancelSpan(span, cancelSpan){
+
+        if(span.start === cancelSpan.start){
+            if(span.end === cancelSpan.end){
+                return [] //destroy entire interval
+            }else{
+                return [new Interval(cancelSpan.end,span.end)] //destroy right side
+            }
+        }else if(span.end === cancelSpan.end){
+            return [new Interval(span.start, cancelSpan.start)] //destroy left side
+        }
+        else{
+            return [         //destroy insides
+                new Interval(span.start, cancelSpan.start),
+                new Interval(cancelSpan.end, span.end)        
+            ]
+        }
+    }
+
+   
+
+    const appliedAntispans = []
+    const modifiedMergedSpans = []
+
+    let p1 = 0
+
+    antispans.forEach(as=>{
+        const {start, end} = as
+
+        console.log("as:", as)
+
+        for(let i = p1; i < mergedSpans.length; i++){
+
+            const ms = mergedSpans[i]
+
+            console.log("ms:", mergedSpans[i])
+
+            //if(start >= ms.start && end <= ms.end){
+            if(ms.contains(as)){
+                console.log("hit!", mergedSpans[i])
+
+                const replacement = cancelSpan(ms, as)
+
+                console.log("replacement", replacement)
+
+                mergedSpans.splice(i,1,replacement)
+
+                mergedSpans = mergedSpans.flat()
+
+  
+                p1 = i + replacement.length
+                break
+            }
+        }
+
+        console.log("p1:", p1)
+    })
+
+    console.log("ms after:", mergedSpans)
+    */
 
 
 
+
+/*
+in the case of OVERLAPPING ANTISPANS
+as far as i can tell, you need to try every combination of spans
+*/
+
+/*
+spans is a sorted list of non-overlapping intervals
+antispans is a sorted list of intervals that may contain overlaps
+for overlaps, just cancel spans as they appear in order
+dont worry about trying to fit overlapping antispans optimally
+'first available resource'
+
+whenever theres an overlap with an antispan, that antispan is removed from antispans
+*/
+export function testingnewfunc(spans,antispans){
+
+    spans = spans ?? []
+    antispans = antispans ?? []
+
+    function getLeftBound(intervals){
+        return intervals[0].start
+    }
+
+    function getRightBound(intervals){
+        return intervals[intervals.length-1].end
+    }
+
+    if(spans.length === 0 || antispans.length === 0 ||
+        getRightBound(spans) <= getLeftBound(antispans) || // the spans underrun the antispans
+        getLeftBound(spans) >= getRightBound(antispans)) { // the spans overrun the antispans
+            return spans
+    }
+
+    function cancelSpan(span, cancelSpan){
+
+        if(span.start === cancelSpan.start){
+            if(span.end === cancelSpan.end){
+                return [] //destroy entire interval
+            }else{
+                return [new Interval(cancelSpan.end,span.end)] //destroy right side
+            }
+        }else if(span.end === cancelSpan.end){
+            return [new Interval(span.start, cancelSpan.start)] //destroy left side
+        }
+        else{
+            return [         //destroy insides
+                new Interval(span.start, cancelSpan.start),
+                new Interval(cancelSpan.end, span.end)        
+            ]
+        }
+    }
+
+    let _spans = _.cloneDeep(spans)
+
+    let antispans_p = 0
+    let spans_p = 0
+
+    let antispan = antispans[antispans_p]
+    let span = _spans[spans_p]
+
+
+    //while the current antispan is ahead of the first span
+    while(antispans_p < antispans.length && antispan.end <= span.start)
+        antispan = antispans[++antispans_p]
+    
+    //while there are antispans to process
+    while(antispans_p < antispans.length){
+
+        antispan = antispans[antispans_p]
+        span = _spans[spans_p]
+
+        //while the current span is before the current antispan, increment the span
+        //note that this could make spans_p overrun the end of arr
+        while(spans_p < _spans.length && span.end <= antispan.start)
+            span = _spans[++spans_p]
+        
+        //if the above loop ran through all the spans, then theres nothing left to process
+        if(spans_p == _spans.length)
+            break
+
+        //if current span fully encloses this antispan
+        if(span.contains(antispan)){
+            const replacement = cancelSpan(span, antispan) //delete the overlap
+            _spans.splice(spans_p,1,replacement)           //replace the old span with the new span(s)
+            _spans = _spans.flat()
+            antispans.splice(antispans_p,1)                //delete antispan from antispans list
+        }else{
+            antispans_p++ //..otherwise the check next antispan
+        }     
+    }
+
+    return _spans
+}
 

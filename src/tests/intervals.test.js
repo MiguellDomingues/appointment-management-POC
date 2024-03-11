@@ -3,25 +3,33 @@ import _  from 'lodash';
 import assert from 'node:assert/strict';
 import moment from "moment";
 
-//import {useBoundStore} from '../src/store.js';
+//import useBoundStore from '../store.js';
 
+//ISSUE:
+//I CANT USE USEBOUNDSTORE INSIDE INTERVALS.JS IF I WANT TO RUN TESTS
+//ALWAYS FAILS WITH MISSING IMPORTS
+// 
 import { 
-    areSetsNonEmpty,
-    splitUnionOverlappingIntervalSets,
+    //areSetsNonEmpty,
+   // splitUnionOverlappingIntervalSets,
     getIntervalsWithAppointmentCapacity,
     getTimeSlotAvailabilities,
     mergeConsecutiveIntervalSets,
     splitDiffOverlappingIntervalSets,
     areSetsEqual,
-    
- } from '../src/intervals.js'
+    testingnewfunc,
+    //getTimeSlotAvailabilityPercentages,
+
+ } from '../intervals.js'
+
+
 
  import { 
 
     IntervalSet,Interval
    
 
- } from '../src/classes.js'
+ } from '../classes.js'
 
 
 
@@ -913,193 +921,7 @@ describe("testing mergeConsecutiveIntervalSets", () => {
 });
 
 
-describe("testing stuff", { skip: true }, () => {
-
-    let availability_sets, unavailability_sets;
-
-    it("", () => { 
-
-       function isEventOverlappingUnsorted2(tStart, tEnd, events){
-            for (const event of events) 
-                    if( !(tEnd <= event.start || tStart >= event.end) )
-                        return true
-                
-            return false
-        }
-       
-        function isEventOverlapping(tStart, tEnd, events){
-            //events must be sorted
-            if(events.length === 0) return false
-
-            //const head = event[0].start
-           // const tail = event[event.length-1].end
-
-            if(events.length === 0 || //if the arr is empty
-               tEnd <= events[0].start ||  // or the event ends before the first event
-               tStart >= events[events.length-1].end) //or the event starts after the last event 
-                    return false
-            
-
-            let i = 0;
-//i < a.length && 
-            //iterate i to first event where sStart < events[i].end
-            while(tStart >= events[i].end)i++
-
-           // console.log(i)
-
-           //if tEnd overruns events[i].start, theres overlap 
-           return (tEnd > events[i].start) 
-
-           // return !(tEnd <= events[i].start) 
-    
-        }
-
-        const a = [
-            {start: 11, end: 14},
-            {start: 4, end: 7},
-            {start: 17, end: 20},       
-        ]
-
-        const aa = [
-            {start: 3, end: 5},
-            {start: 8, end: 12},
-
-        ]
-
-        const aaa = [
-            {start: 3, end: 6},
-        ]
-
-       function nonoverlaping(a){
-
-            console.log("non overlap cases:")
-
-            //(4,7)(11,14)(17,20)
-            console.log(isEventOverlappingUnsorted2(1,3,a)) //left disjointed
-            console.log(isEventOverlappingUnsorted2(1,4,a)) //left jointed
-
-            console.log(isEventOverlappingUnsorted2(7,11,a)) //tie both
-            console.log(isEventOverlappingUnsorted2(7,10,a)) //tie lhs
-            console.log(isEventOverlappingUnsorted2(8,10,a)) //tie none
-            console.log(isEventOverlappingUnsorted2(8,11,a)) //tie rhs
-
-            console.log(isEventOverlappingUnsorted2(14,17,a)) //tie both
-            console.log(isEventOverlappingUnsorted2(14,16,a)) //tie lhs
-            console.log(isEventOverlappingUnsorted2(15,16,a)) //tie none
-            console.log(isEventOverlappingUnsorted2(15,17,a)) //tie rhs
-
-            console.log(isEventOverlappingUnsorted2(20,21,a)) //right disjointed
-            console.log(isEventOverlappingUnsorted2(21,22,a)) //right jointed
-
-       }
-
-       overlaping(a)
-
-       
-  
-
-       // console.log(isEventOverlappingUnsorted2(19,21,a)) //false
-       
-
-       function overlaping(a){
-
-        console.log("overlap cases:")
-
-        //(4,7)(11,14)(17,20)
-        console.log(isEventOverlappingUnsorted2(20,21,a))
-  
-
-
-   }
-        
-       
-
-       // console.log(isEventOverlappingUnsorted(8,12,a))
-       // console.log(isEventOverlappingUnsorted(12,13,a))
-       // console.log(isEventOverlappingUnsorted(15,17,a))
-
-        //edge case i need to check
-      //  console.log(isEventOverlappingUnsorted(16,18,a))
-      //  console.log(isEventOverlappingUnsorted(8,18,a))
-       
-
-      //left/right corners
-
-
-
-
-      
-      /*
-
-  console.log(isEventOverlappingUnsorted2(1,5,a))
-
-        console.log(isEventOverlappingUnsorted2(1,8,a))
-        console.log(isEventOverlappingUnsorted2(1,9,a))
-        console.log(isEventOverlappingUnsorted2(1,11,a))
-
-        console.log(isEventOverlappingUnsorted2(1,13,a))
-        console.log(isEventOverlappingUnsorted2(1,14,a))
-
-        console.log(isEventOverlappingUnsorted2(1,15,a))
-        console.log(isEventOverlappingUnsorted2(1,16,a))
-        console.log(isEventOverlappingUnsorted2(1,17,a))
-
-        console.log(isEventOverlappingUnsorted2(1,18,a))
-        console.log(isEventOverlappingUnsorted2(1,19,a))
-
-
-      console.log("passing cases:")
-      console.log("l/r corners")
-    console.log(isEventOverlapping(1,3,a))
-       console.log(isEventOverlapping(18,21,a))
-
-       console.log("in-between non inclusive")
-       console.log(isEventOverlapping(6,7,a))
-       console.log(isEventOverlapping(13,14,a))
-
-       console.log("in-between inclusive")
-       console.log(isEventOverlapping(5,8,a))
-
-       console.log("in-between l/r inclusive")
-       console.log(isEventOverlapping(5,7,a))
-       console.log(isEventOverlapping(6,8,a))
-         // console.log(isAptOverlapping(13,15,a)) 
-         
-             console.log("left corner")
-    console.log(isEventOverlapping(1,4,a))
-    console.log(isEventOverlapping(1,7,a))
-    console.log(isEventOverlapping(1,9,a))
-    console.log(isEventOverlapping(1,13,a))
-    console.log(isEventOverlapping(1,16,a))
-        */ 
-         
-         
-
-   
-
-      
-
-
-
- 
-     });
-
-    beforeEach(() => {
-
-        availability_sets = [
-            new IntervalSet(5,9, [0, 1]),
-            new IntervalSet(13,17, [0,1]),
-            new IntervalSet(17,25, [0,1]),
-            new IntervalSet(28,33, [0,1]),
-        ]
-
-        unavailability_sets = []
-       
-    });
-
-});
-
-describe("Testing getIntervalsWithAppointmentCapacity", { skip: false }, () => {
+describe("Testing getIntervalsWithAppointmentCapacity", { skip: true }, () => {
 
     let shifts, breaks;
 
@@ -1257,7 +1079,7 @@ describe("Testing getTimeSlotAvailabilities", { skip: true }, () => {
 
             shifts = [
                 new IntervalSet(0, 60, ["0","1"]),
-                new IntervalSet(90, 120, ["0","1","3"]),
+                new IntervalSet(60, 120, ["0","1","3"]),
                 //new IntervalSet(60,120, ["3"]),
             ]
     
@@ -1285,166 +1107,67 @@ describe("Testing getTimeSlotAvailabilities", { skip: true }, () => {
             let _timeslots = [
                 new Interval(0,60),
                 new Interval(60,120)
+              
             ]
 
+            function makeObject(totalAvailabilities, adjustedAvailabilities, timeSlots){
 
-            function getIntervalsWithAvailability(availability, unavailability){
+                if(timeSlots.length == 0) 
+                    throw new Error('Error timeSlots arr can not be empty')
 
-                const diffed = splitDiffOverlappingIntervalSets(availability, unavailability)
-                const merged = mergeConsecutiveIntervalSets(diffed,areSetsEqual)
-                const withCapacity = merged.filter(({overlap_count, set})=>overlap_count < set.length)
-                return mergeConsecutiveIntervalSets(withCapacity,()=>true)
+               let availabilityCount = 0
+
+                const objs = timeSlots.map(({start,end}, idx)=>{
+                    if(totalAvailabilities[idx].length < adjustedAvailabilities[idx].length) 
+                        throw new Error('Error totalAvailabilities can not be greater than adjustedAvailabilities ')
+                    const availability = totalAvailabilities[idx].length > 0 ? Math.trunc( (adjustedAvailabilities[idx].length/totalAvailabilities[idx].length)*100 ) : 0
+                    availabilityCount+=availability
+
+                    return {
+                        start,
+                        end,
+                        openTimes: adjustedAvailabilities[idx],
+                        availability: availability
+
+                    }
+                })
+
+                
+
+                const ret = {
+                    date: "2023-12-07",
+                    dotw: "Monday",
+                    sceduale: objs,
+                    day_availability: Math.trunc( (availabilityCount/objs.length) )
+                }
+
+                return {}
+
+                //console.log("ret", ret)
             }
+          
 
-            const totalAvailability = getIntervalsWithAvailability(shifts, breaks)
-            const adjustedAvailability = getIntervalsWithAvailability(shifts, appointments.concat(breaks))
+            const totalAvailability = getIntervalsWithAppointmentCapacity(shifts, breaks)
+            const adjustedAvailability = getIntervalsWithAppointmentCapacity(shifts, appointments.concat(breaks))
 
+
+            console.log("adjustedAvailability intervals:", adjustedAvailability)
+            console.log("totalAvailability intervals:", totalAvailability)
           //  console.log("totalAvailability:", totalAvailability)
          // console.log("adjustedAvailability intervals:", adjustedAvailability)
          // console.log("totalAvailability intervals:", totalAvailability)
 
-          console.log("totalAvailability:", getTimeSlotAvailabilities(totalAvailability, 10, _timeslots))
-          console.log("adjustedAvailability:", getTimeSlotAvailabilities(adjustedAvailability, 10, _timeslots))
+         const _totalAvailability = getTimeSlotAvailabilities(totalAvailability, 15, _timeslots)
+         const _adjustedAvailability = getTimeSlotAvailabilities(adjustedAvailability, 15, _timeslots)
+
+          console.log("totalAvailability:", _totalAvailability)
+          console.log("adjustedAvailability:", _adjustedAvailability)
+
+          makeObject(_totalAvailability, _adjustedAvailability,_timeslots)
+
+         // console.log( getTimeSlotAvailabilityPercentages(_totalAvailability, _adjustedAvailability) )
+
         
-            /*
-            const aptsBreaks = splitDiffOverlappingIntervalSets(shifts, appointments.concat(breaks))
-            const onlyBreaks = splitDiffOverlappingIntervalSets(shifts, breaks)
-
-            console.log( "aptsBreaks", aptsBreaks )
-            console.log( "onlyBreaks", onlyBreaks )
-
-            const bb = mergeConsecutiveIntervalSets(b,areSetsEqual)
-
-            console.log( "cleaned", bb )
-
-            const c = bb.filter(({overlap_count, set})=>overlap_count < set.length)
-
-            console.log( "filtered out intervals with too many overlaps", c )
-
-            const cc = mergeConsecutiveIntervalSets(c,()=>true)
-
-            console.log( "merged consecutive intervals", cc )
-
-            const ccc = b.filter(({overlap_count, set})=>overlap_count < set.length)
-            const cccc = mergeConsecutiveIntervalSets(ccc,()=>true)
-*/
-          //  console.log(getTimeSlotAvailabilities(cc, 10, _timeslots))
-
-
-           
-
-            /*
-
-             //"S: [ (0, 60, [0,1,2]), (60, 120, [3]) ] B: [ (30,40,[0,1]) (90,100,[0,1]) ]"
-        it("returns proper times for every timeslot. service_duration: 10", { skip: true }, () => { 
-    
-            shifts = [
-                new IntervalSet(0, 60, ["0","1","2"]),
-                new IntervalSet(60,120, ["3"]),
-            ]
-    
-             breaks = [
-                new IntervalSet(30, 40, ["0","1"]),
-                new IntervalSet(90,100, ["3"]),
-            ]
-    
-            const split = splitDiffOverlappingIntervalSets(shifts, breaks)
-            const merged = mergeConsecutiveIntervalSets(split, areSetsNonEmpty)
-    
-            assert.deepStrictEqual( 
-                getTimeSlotAvailabilities(merged, 10, timeslots), 
-                [ 
-                    [0,10,20,30,40,50], 
-                    [60,70,80,100,110]
-                ],"");  
-        
-        }); 
-
-        it("returns proper times for every timeslot after merging. service_duration: 15",{ skip: true }, () => { 
-    
-            shifts = [
-                new IntervalSet(0, 60, ["0","1","2"]),
-                new IntervalSet(60,120, ["3"]),
-            ]
-    
-             breaks = [
-                new IntervalSet(30, 40, ["0","1"]),
-                new IntervalSet(90,100, ["3"]),
-            ]
-    
-            const split = splitDiffOverlappingIntervalSets(shifts, breaks)
-            
-            const merged = mergeConsecutiveIntervalSets(split, areSetsNonEmpty)
-            //console.log( "MERGED", merged )
-
-            assert.deepStrictEqual( 
-                getTimeSlotAvailabilities(merged, 15, timeslots), 
-                [ 
-                    [0,15,30,45], 
-                    [60,75,100]
-                ],"");  
-        
-        }); 
-
-        it("returns proper times for every timeslot after merging. service_duration: 25",{ skip: true }, () => { 
-    
-            shifts = [
-                new IntervalSet(0, 60, ["0","1","2"]),
-                new IntervalSet(60,120, ["3"]),
-            ]
-    
-             breaks = [
-                new IntervalSet(30, 40, ["0","1"]),
-                new IntervalSet(80,95, ["3"]),
-            ]
-    
-            const split = splitDiffOverlappingIntervalSets(shifts, breaks)
-
-        // console.log( "split", split )
-            
-            const merged = mergeConsecutiveIntervalSets(split, areSetsNonEmpty)
-
-           // console.log( "MERGED", merged )
-
-            let _timeslots = [
-                new Interval(0,60),
-                new Interval(60,120)
-            ]
-
-            assert.deepStrictEqual( 
-                getTimeSlotAvailabilities(merged, 25, _timeslots), 
-                [ 
-                    [0,25,50], 
-                    [95]
-                ],"");  
-             
-        }); 
-            
-
-
-            */
-    
-           // const split = splitDiffOverlappingIntervalSets(shifts, breaks)
-
-       //  console.log( "split", split )
-            
-           // const merged = mergeConsecutiveIntervalSets(split, areSetsNonEmpty)
-
-           
-
-           // console.log( "MERGED", merged )
-
-
-
-           
-/*
-            assert.deepStrictEqual( 
-                getTimeSlotAvailabilities(merged, 25, _timeslots), 
-                [ 
-                    [0,40], 
-                    [95]
-                ],"");  */
-             
         }); 
 
 
@@ -1534,6 +1257,497 @@ describe("Testing getTimeSlotAvailabilities", { skip: true }, () => {
     });
 
 });
+
+describe("testing testingnewfunc", { skip: false}, () => {
+
+    let spans,antispans
+
+    describe("testing edge cases", { skip: false}, () => {
+
+        let spans
+    
+        it("returns spans when antispans is empty or undefined", () => { 
+            assert.deepStrictEqual(testingnewfunc(spans,[]), spans,"");
+            assert.deepStrictEqual(testingnewfunc(spans), spans,"");  
+        });
+
+        it("returns empty list when both arguments are undefined or an empty list", () => { 
+            assert.deepStrictEqual(testingnewfunc(), [],""); 
+            assert.deepStrictEqual(testingnewfunc([]), [],""); 
+            assert.deepStrictEqual(testingnewfunc([],[]), [],""); 
+        });
+
+        it("returns empty list when spans is empty list", () => { 
+            assert.deepStrictEqual(testingnewfunc([],[new Interval(12, 18)]), [],""); 
+        });
+
+        it("returns spans when antispans underruns or overruns spans", () => { 
+            assert.deepStrictEqual(testingnewfunc(spans,
+            [
+                new Interval(0,5),
+                new Interval(6,7),
+                new Interval(7,10),
+            ]), spans,""); 
+
+            assert.deepStrictEqual(testingnewfunc(spans,
+            [
+                new Interval(100,105),
+                new Interval(106,110),
+                new Interval(111,115),
+            ]), spans,""); 
+        });
+
+        beforeEach(() => {
+    
+            spans = [
+                new Interval(10,20),
+                new Interval(30,40),
+                new Interval(50,60),
+            ]
+
+            antispans = []
+           
+        });
+    
+    });
+
+    describe("testing AS (0,5), (5,10), (15,20), shifting right 6 units each case until antispans overruns spans", { skip: false}, () => {
+
+        let spans,antispans
+    
+        it(`
+            S:              10----------20         30----------40       50----------60
+            AS:   0-----5   10-----15   20-----25
+       f(S,AS)=                    15---20         30----------40       50----------60                       
+        `, () => { 
+
+            assert.deepStrictEqual(
+                testingnewfunc(spans,
+                    [new Interval(0,5),new Interval(10,15),new Interval(20,25)]),
+                [new Interval(15,20),new Interval(30,40),new Interval(50,60), ],"");
+
+         
+
+        });
+
+        it(`
+            S:         10----------20         30----------40       50----------60
+            AS:   6-----11   16-----21   26-----31
+       f(S,AS)=        10----------20         30----------40       50----------60                                  
+        `, () => { 
+
+            assert.deepStrictEqual(
+                testingnewfunc(spans,
+                    [new Interval(6,11),new Interval(16,21),new Interval(26,31)]),
+                spans,"");
+
+        });
+
+        it(`
+            S:         10---------20          30----------40       50----------60
+            AS:           12---17     22---27    32----38
+       f(S,AS)=        10-12   17-20          30-32    38-40       50----------60                                  
+        `, () => { 
+
+            assert.deepStrictEqual(
+                testingnewfunc(spans,
+                    [new Interval(12,17),new Interval(22,27),new Interval(32,38)]),
+                    [
+                        new Interval(10,12),
+                        new Interval(17,20),
+                        new Interval(30,32),
+                        new Interval(38,40),
+                        new Interval(50,60),
+                    ],"");
+
+        });
+
+        it(`
+        S:         10---------20          30----------40       50----------60
+        AS:                18----23     28----33    38-----44
+   f(S,AS)=        10---------20          30----------40       50----------60                                  
+    `, () => { 
+
+        assert.deepStrictEqual(
+            testingnewfunc(spans,
+                [new Interval(18,23),new Interval(28,33),new Interval(38,44)]),
+               spans,"");
+
+        });
+
+        it(`
+        S:         10---------20        30----------40          50----------60
+        AS:                       24----30      35----41   46-----52
+   f(S,AS)=        10---------20        30----------40          50----------60                                  
+    `, () => { 
+
+        assert.deepStrictEqual(
+            testingnewfunc(spans,
+                [new Interval(24,30),new Interval(35,41),new Interval(46,52)]),
+               spans,"");
+
+        });
+
+        it(`
+        S:         10---------20     30----------40           50----------60
+        AS:                          30----36       41----47      52---58
+   f(S,AS)=        10---------20           36----40           50--52   58--60                                  
+    `, () => { 
+
+        assert.deepStrictEqual(
+            testingnewfunc(spans,
+                [new Interval(30,36),new Interval(41,47),new Interval(52,58)]),
+                [
+                    new Interval(10,20),
+                    new Interval(36,40),
+                    new Interval(50,52),
+                    new Interval(58,60),
+                ],"");
+
+        });
+
+        it(`
+        S:         10---------20     30----------40        50----------60
+        AS:                                  36-----42  47-----53   58-----64
+   f(S,AS)=        10---------20     30----------40        50----------60                                      
+    `, () => { 
+
+        assert.deepStrictEqual(
+            testingnewfunc(spans,
+                [new Interval(36,42),new Interval(47,53),new Interval(58,64)]),
+                spans,"");
+
+        });
+
+        it(`
+        S:         10---------20   30----------40         50-----------60
+        AS:                                       42---48     53---59     64---70
+   f(S,AS)=        10---------20   30----------40         50--53   59--60                                      
+    `, () => { 
+
+        assert.deepStrictEqual(
+            testingnewfunc(spans,
+                [new Interval(42,48),new Interval(53,59),new Interval(64,70)]),
+                [
+                    new Interval(10,20),
+                    new Interval(30,40),
+                    new Interval(50,53),
+                    new Interval(59,60),
+                ],"");
+
+        });
+
+        it(`
+        S:         10---------20   30----------40     50-----------60
+        AS:                                        48-----54   56-----65   70---76
+   f(S,AS)=        10---------20   30----------40     50-----------60                                        
+    `, () => { 
+
+        assert.deepStrictEqual(
+            testingnewfunc(spans,
+                [new Interval(48,54),new Interval(59,65),new Interval(70,76)]),
+                spans,"");
+
+        });
+
+        it(`
+        S:         10---------20 30----------40  50-----------60
+        AS:                                            54-----60   62---68   76---82
+   f(S,AS)=        10---------20 30----------40  50----54                                        
+    `, () => { 
+
+        assert.deepStrictEqual(
+            testingnewfunc(spans,
+                [new Interval(54,60),new Interval(62,68),new Interval(76,82)]),
+                [new Interval(10,20),new Interval(30,40),new Interval(50,54)],"");
+
+        });
+
+        it(`
+        S:         10---------20 30----------40 50-----------60
+        AS:                                                  60-----66   68---74   82---88
+   f(S,AS)=        10---------20 30----------40 50-----------60                                        
+    `, () => { 
+        assert.deepStrictEqual(
+            testingnewfunc(spans,
+                [new Interval(60,66),new Interval(68,74),new Interval(82,88)]),
+                spans,"");
+        });
+
+        beforeEach(() => {
+    
+            spans = [
+                new Interval(10,20),
+                new Interval(30,40),
+                new Interval(50,60),
+            ]
+
+            antispans = []
+           
+        });
+    
+    });
+
+    describe("testing multiple consecutive/nonconsecutive span deletions with single spans", { skip: false}, () => {
+
+        let spans,antispans
+    
+        it(`
+            S:    10----------20   30----------40  50----------60
+            AS:   10----15----20   30---35--39        51---55--60
+       f(S,AS)=                             39-40  50-51                      
+        `, () => { 
+
+            assert.deepStrictEqual(
+                testingnewfunc(spans,
+                    [new Interval(10,15),new Interval(15,20),
+                     new Interval(30,35), new Interval(35,39),
+                     new Interval(51,55), new Interval(55,60),
+                    ]),
+                [new Interval(39,40),new Interval(50,51)],"");
+
+        });
+
+        it(`
+            S:   10--------------------------20   
+            AS:  10--11  13--15  17--18  19--20  
+       f(S,AS)=      11--13  15--17  18--19                     
+        `, () => { 
+
+            assert.deepStrictEqual(
+                testingnewfunc([new Interval(10,20)],
+                    [new Interval(10,11),new Interval(13,15),
+                     new Interval(17,18), new Interval(19,20),
+                    ]),
+                [new Interval(11,13),new Interval(15,17), new Interval(18,19),],"");
+
+        });
+
+        beforeEach(() => {
+    
+            spans = [
+                new Interval(10,20),
+                new Interval(30,40),
+                new Interval(50,60),
+            ]
+
+            antispans = []
+           
+        });
+    
+    });
+
+    describe("testing deletions with overlapping spans", { skip: false}, () => {
+
+        let spans,antispans
+    
+        it(`
+            S:    10----------20   30----------40  50----------60
+            AS:   10-------17            35----40          
+                      15------20   30-------37  
+       f(S,AS)=            17-20            37-40  50----------60                    
+        `, () => { 
+
+            assert.deepStrictEqual(
+                testingnewfunc(spans,
+                    [new Interval(10,17),new Interval(15,20),
+                     new Interval(30,37), new Interval(35, 40), 
+                    ]),
+                [new Interval(17,20),new Interval(37,40),new Interval(50,60)],"");
+
+        });
+
+
+        beforeEach(() => {
+    
+            spans = [
+                new Interval(10,20),
+                new Interval(30,40),
+                new Interval(50,60),
+            ]
+
+            antispans = []
+           
+        });
+    
+    });
+
+    describe("testing removals from antispans list when spans are deleted", { skip: false}, () => {
+
+        let spans,antispans
+    
+        it(`
+            S:              10----------20         30----------40       50----------60
+            AS:   0-----5   10-----15   20-----25
+       f(S,AS)=                    15---20         30----------40       50----------60
+            AS=   0-----5               20-----25                       
+        `, () => { 
+
+            antispans = [new Interval(0,5),new Interval(10,15),new Interval(20,25)]
+
+            assert.deepStrictEqual(
+                testingnewfunc(spans,antispans),
+                [new Interval(15,20),new Interval(30,40),new Interval(50,60), ],"");
+
+            assert.deepStrictEqual(antispans,
+                [new Interval(0,5),new Interval(20,25)],"");
+
+        });
+
+        it(`
+            S:         10---------20          30----------40       50----------60
+            AS:           12---17     22---27    32----38
+       f(S,AS)=        10-12   17-20          30-32    38-40       50----------60
+            AS=                       22---27                                   
+        `, () => { 
+
+            antispans = [new Interval(12,17),new Interval(22,27),new Interval(32,38)]
+
+            assert.deepStrictEqual(
+                testingnewfunc(spans,antispans),
+                    [
+                        new Interval(10,12),
+                        new Interval(17,20),
+                        new Interval(30,32),
+                        new Interval(38,40),
+                        new Interval(50,60),
+                    ],"");
+
+            assert.deepStrictEqual(antispans,
+                [new Interval(22,27)],"");
+
+        });
+
+        it(`
+        S:         10---------20     30----------40           50----------60
+        AS:                          30----36       41----47      52---58
+   f(S,AS)=        10---------20           36----40           50--52   58--60 
+        AS=                                         41----47                           
+    `, () => { 
+
+            antispans = [new Interval(30,36),new Interval(41,47),new Interval(52,58)]
+
+       
+            assert.deepStrictEqual(
+                testingnewfunc(spans,antispans),
+                    [
+                        new Interval(10,20),
+                        new Interval(36,40),
+                        new Interval(50,52),
+                        new Interval(58,60),
+                    ],"");
+
+            assert.deepStrictEqual(antispans,
+                [new Interval(41,47)],"");
+
+        });
+
+        it(`
+        S:         10---------20   30----------40         50-----------60
+        AS:                                       42---48     53---59     64---70
+   f(S,AS)=        10---------20   30----------40         50--53   59--60
+        AS=                                       42---48                 64---70                                      
+    `, () => { 
+
+        antispans = [new Interval(42,48),new Interval(53,59),new Interval(64,70)]
+
+        assert.deepStrictEqual(
+            testingnewfunc(spans,antispans),
+                [
+                    new Interval(10,20),
+                    new Interval(30,40),
+                    new Interval(50,53),
+                    new Interval(59,60),
+                ],"");
+
+            
+        assert.deepStrictEqual(antispans,
+            [new Interval(42,48),new Interval(64,70)],"");
+
+        });
+
+        it(`
+        S:         10---------20 30----------40  50-----------60
+        AS:                                            54-----60   62---68   76---82
+   f(S,AS)=        10---------20 30----------40  50----54
+        AS=                                                        62---68   76---82                                        
+    `, () => { 
+
+        antispans = [new Interval(54,60),new Interval(62,68),new Interval(76,82)]
+
+        assert.deepStrictEqual(
+            testingnewfunc(spans,antispans),
+                [new Interval(10,20),new Interval(30,40),new Interval(50,54)],"");
+           
+        assert.deepStrictEqual(antispans,
+            [new Interval(62,68),new Interval(76,82)],"");
+
+        });
+
+        beforeEach(() => {
+    
+            spans = [
+                new Interval(10,20),
+                new Interval(30,40),
+                new Interval(50,60),
+            ]
+
+            antispans = []
+           
+        });
+    
+    });
+
+    beforeEach(() => {
+
+        spans = [
+            new Interval(10,20),
+            new Interval(30,40),
+            new Interval(50,60),
+        ]
+
+        antispans = []
+       
+    });
+
+});
+
+describe("testing stuff", { skip: true}, () => {
+
+    let mergedSpans
+
+    it("", () => { 
+
+        let antispans = [
+            new Interval(4,7),
+            new Interval(11,18),
+
+
+        ]
+
+        const a = testingnewfunc(mergedSpans,antispans)
+
+        console.log(a)
+
+      
+       
+     });
+
+    beforeEach(() => {
+
+        mergedSpans = [
+            //new Interval(10,20),
+           // new Interval(30,40),
+            new Interval(50,60),
+            new Interval(60,80),
+        ]
+       
+    });
+
+});
+
+
+
 
 
 /*
